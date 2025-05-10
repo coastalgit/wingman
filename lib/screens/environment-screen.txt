@@ -1,0 +1,252 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/config_model.dart';
+import '../providers/app_providers.dart';
+import '../utils/constants.dart';
+import '../utils/utils.dart';
+import '../widgets/common_widgets.dart';
+
+class EnvironmentConfigScreen extends ConsumerStatefulWidget {
+  const EnvironmentConfigScreen({super.key});
+
+  @override
+  ConsumerState<EnvironmentConfigScreen> createState() => _EnvironmentConfigScreenState();
+}
+
+class _EnvironmentConfigScreenState extends ConsumerState<EnvironmentConfigScreen> {
+  bool _isLoading = false;
+  late List<DevelopmentEnvironment> _selectedEnvironments;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedEnvironments = List.from(ref.read(selectedEnvironmentsProvider));
+  }
+
+  void _toggleEnvironment(DevelopmentEnvironment environment) {
+    if (environment.isDisabled) return;
+    
+    setState(() {
+      if (_selectedEnvironments.contains(environment)) {
+        _selectedEnvironments.remove(environment);
+      } else {
+        _selectedEnvironments.add(environment);
+      }
+    });
+  }
+
+  Future<void> _saveAndContinue() async {
+    if (_selectedEnvironments.isEmpty) {
+      Utils.showSnackBar(context, 'Please select at least one environment');
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Update environments provider
+      ref.read(selectedEnvironmentsProvider.notifier).state = _selectedEnvironments;
+      
+      // Update config
+      final config = ref.read(configProvider);
+      if (config != null) {
+        final updatedConfig = config.copyWith(
+          environments: _selectedEnvironments,
+        );
+        
+        // Save to disk
+        await updatedConfig.saveConfig();
+        
+        // Update provider
+        ref.read(configProvider.notifier).state = updatedConfig;
+      }
+      
+      // Navigate to next screen
+      ref.read(currentScreenProvider.notifier).state = AppScreen.newChat;
+    } catch (e) {
+      if (mounted) {
+        Utils.showSnackBar(context, 'Error saving configuration: $e');
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  void _goBack() {
+    ref.read(currentScreenProvider.notifier).state = AppScreen.projectSetup;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appName = ref.watch(appNameProvider);
+    
+    return Scaffold(
+      appBar: AppNavigationBar(
+        title: '$appName - Environment Setup',
+        backLabel: 'Project Setup',
+        onBack: _goBack,
+      ),
+      body: LoadingOverlay(
+        isLoading: _isLoading,
+        message: 'Saving configuration...',
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Breadcrumb navigation
+                  BreadcrumbNav(
+                    items: ['Project Setup', 'Environment Setup'],
+                    onTaps: [
+                      _goBack,
+                      null,
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  const Text(
+                    'Select Development Environments',
+                    style: AppConstants.headingStyle,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Choose the AI development tools you\'ll be using with Wingman. This will determine which prompt and context files are created.',
+                    style: AppConstants.bodyStyle,
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  // Environment selection
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Development Environments',
+                          style: AppConstants.subheadingStyle,
+                        ),
+                        const SizedBox(height: 16),
+                        ...DevelopmentEnvironment.values.map((env) {
+                          final isSelected = _selectedEnvironments.contains(env);
+                          final isDisabled = env.isDisabled;
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: InkWell(
+                              onTap: isDisabled ? null : () => _toggleEnvironment(env),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Opacity(
+                                opacity: isDisabled ? 0.6 : 1.0,
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: isSelected,
+                                      onChanged: isDisabled
+                                          ? null
+                                          : (value) => _toggleEnvironment(env),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                env.displayName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              if (isDisabled) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .secondary
+                                                        .withOpacity(0.2),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text(
+                                                    'Coming Soon',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            env.description,
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withOpacity(0.7),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        
+                        if (_selectedEnvironments.isEmpty) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Please select at least one environment',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                        
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            SecondaryButton(
+                              text: 'Back',
+                              onPressed: _goBack,
+                            ),
+                            const SizedBox(width: 16),
+                            PrimaryButton(
+                              text: 'Continue',
+                              onPressed: _selectedEnvironments.isEmpty
+                                  ? null
+                                  : _saveAndContinue,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
