@@ -164,7 +164,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Project Setup'),
+        title: const Text('Project Setup v1.0'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(
