@@ -49,13 +49,13 @@ class _MainInterfaceScreenState extends ConsumerState<MainInterfaceScreen> with 
 
   @override
   Widget build(BuildContext context) {
-    final appName = ref.watch(appNameProvider);
     final activeChat = ref.watch(activeChatProvider);
     final chatName = activeChat?.name ?? 'Unnamed Chat';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$appName - $chatName'),
+        //title: Text('Chat:[$chatName]'),
+        title: Text(chatName),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -97,6 +97,12 @@ class _MainInterfaceScreenState extends ConsumerState<MainInterfaceScreen> with 
         ],
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 4,
+          automaticIndicatorColorAdjustment: true,
+          //labelColor: Theme.of(context).colorScheme.primary,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.6),
           tabs: const [
             Tab(
               icon: Icon(Icons.description),
@@ -113,6 +119,7 @@ class _MainInterfaceScreenState extends ConsumerState<MainInterfaceScreen> with 
         child: Column(
           children: [
             // Breadcrumb navigation
+
             Padding(
               padding: const EdgeInsets.all(AppConstants.smallPadding),
               child: BreadcrumbNav(

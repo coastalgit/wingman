@@ -75,7 +75,6 @@ class PrimaryButton extends StatelessWidget {
                 ],
               )
             : Text(text);
-
     return ElevatedButton(
       onPressed: isLoading ? null : onPressed,
       style: ElevatedButton.styleFrom(
@@ -83,8 +82,8 @@ class PrimaryButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 12,
+          horizontal: 32,
+          vertical: 24,
         ),
       ),
       child: content,
@@ -117,7 +116,6 @@ class SecondaryButton extends StatelessWidget {
             ],
           )
         : Text(text);
-
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
@@ -125,8 +123,8 @@ class SecondaryButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 12,
+          horizontal: 24,
+          vertical: 16,
         ),
       ),
       child: content,

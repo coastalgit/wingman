@@ -331,6 +331,7 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
           // Environment tabs
           TabBar(
             controller: _environmentTabController,
+            tabAlignment: TabAlignment.center,
             isScrollable: true,
             tabs: [
               ...environments.map((env) => Tab(
@@ -386,6 +387,15 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
               // New Prompt button
               ElevatedButton.icon(
                 onPressed: () => _createNewPrompt(environment),
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 24,
+                  ),
+                ),
                 icon: const Icon(Icons.add),
                 label: const Text('New Prompt'),
               ),
@@ -396,8 +406,18 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
                 onPressed: isRestore ? () => _restorePrompt(environment) : () => _clearPrompt(environment),
                 icon: Icon(isRestore ? Icons.restore : Icons.clear_all),
                 label: Text(isRestore ? 'Restore' : 'Clear'),
+                // style: ElevatedButton.styleFrom(
+                //   backgroundColor: isRestore ? Theme.of(context).colorScheme.secondary : null,
+                // ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isRestore ? Theme.of(context).colorScheme.secondary : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 24,
+                  ),
                 ),
               ),
 
@@ -423,7 +443,7 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
 
           // Command instruction
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            padding: const EdgeInsets.only(top: 16.0, bottom: 2.0, left: 4.0),
             child: Row(
               children: [
                 const Text('After saving, type '),
@@ -460,6 +480,7 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
                 controller: controller,
                 maxLines: null,
                 expands: true,
+                textAlignVertical: TextAlignVertical.top, // Align text to top
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.zero,
@@ -467,6 +488,7 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
                   ),
                   contentPadding: EdgeInsets.all(AppConstants.defaultPadding),
                   hintText: 'Enter your prompt here...',
+                  alignLabelWithHint: true, // Helps align hint text to top as well
                 ),
                 style: const TextStyle(
                   fontFamily: 'monospace',
@@ -498,6 +520,13 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
               const SizedBox(width: 8),
               DropdownButton<DevelopmentEnvironment?>(
                 value: selectedEnv,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                underline: Container(
+                  height: 2,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 items: [
                   const DropdownMenuItem<DevelopmentEnvironment?>(
                     value: null,
@@ -593,6 +622,15 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
                                   ),
                                   ElevatedButton(
                                     onPressed: () => _loadPromptFromHistory(prompt),
+                                    style: ElevatedButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 32,
+                                        vertical: 24,
+                                      ),
+                                    ),
                                     child: const Text('Load'),
                                   ),
                                 ],

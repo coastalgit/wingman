@@ -1,12 +1,12 @@
+import 'package:wingman/models/config_model.dart';
+import 'package:wingman/utils/constants.dart';
+import 'package:wingman/widgets/common_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:wingman/providers/app-providers.dart';
-import 'package:wingman/utils/constants.dart';
 import 'package:wingman/utils/utils.dart';
-import 'package:wingman/widgets/common_widgets.dart';
 import 'package:wingman/models/context-model.dart';
-import 'package:wingman/models/config_model.dart';
 
 class ContextTab extends ConsumerStatefulWidget {
   const ContextTab({super.key});
@@ -98,7 +98,7 @@ class _ContextTabState extends ConsumerState<ContextTab> {
       ref.read(contextContentProvider.notifier).state = contextContent;
 
       if (mounted) {
-        Utils.showSnackBar(this.context, 'Context saved successfully');
+        Utils.showSnackBar(context, 'Context saved successfully');
       }
     } catch (e) {
       if (mounted) {
@@ -233,7 +233,8 @@ class _ContextTabState extends ConsumerState<ContextTab> {
             const SizedBox(height: 16),
 
             // Editor area
-            Expanded(
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.25, // 50% reduction from the expanded size
               child: AppCard(
                 padding: EdgeInsets.zero,
                 child: _isPreviewMode
@@ -251,6 +252,7 @@ class _ContextTabState extends ConsumerState<ContextTab> {
                         controller: _contextController,
                         maxLines: null,
                         expands: true,
+                        textAlignVertical: TextAlignVertical.top, // Align text to top
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.zero,
@@ -258,6 +260,7 @@ class _ContextTabState extends ConsumerState<ContextTab> {
                           ),
                           contentPadding: EdgeInsets.all(AppConstants.defaultPadding),
                           hintText: 'Enter your context here...',
+                          alignLabelWithHint: true, // Helps align hint text to top as well
                         ),
                         style: const TextStyle(
                           fontFamily: 'monospace',

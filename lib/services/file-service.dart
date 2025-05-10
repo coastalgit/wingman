@@ -71,6 +71,7 @@ I'm specifically working on "[CHAT_NAME]" which involves:
   static Future<bool> isValidRepository(String directory) async {
     final dir = Directory(directory);
     if (!await dir.exists()) {
+      print('Directory does not exist: $directory');
       return false;
     }
 
@@ -78,19 +79,27 @@ I'm specifically working on "[CHAT_NAME]" which involves:
     // For Windows: C:\, D:\, etc.
     // For macOS/Linux: /
     final dirPath = dir.path;
+    print('Checking directory: $dirPath');
+
     if (Platform.isWindows) {
       // Check if it's a Windows root directory like "C:\" or "D:\"
       final rootPattern = RegExp(r'^[A-Za-z]:\\$');
-      if (rootPattern.hasMatch(dirPath)) {
+      final isRootDir = rootPattern.hasMatch(dirPath);
+      print('Is Windows root directory? $isRootDir');
+      if (isRootDir) {
         return false;
       }
     } else {
       // Check if it's the root directory "/"
-      if (dirPath == '/') {
+      final isRootDir = dirPath == '/';
+      print('Is Unix root directory? $isRootDir');
+      if (isRootDir) {
         return false;
       }
     }
 
+    // If we got here, the directory exists and is not a root directory
+    print('Directory is valid: $dirPath');
     return true;
   }
 

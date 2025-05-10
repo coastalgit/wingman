@@ -130,6 +130,9 @@ class _EnvironmentConfigScreenState extends ConsumerState<EnvironmentConfigScree
                   children: [
                     ElevatedButton(
                       onPressed: _selectedEnvironments.isNotEmpty ? _saveAndContinue : null,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                      ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 20,

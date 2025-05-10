@@ -88,12 +88,11 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appName = ref.watch(appNameProvider);
     final chatsAsync = ref.watch(chatsProvider);
 
     return Scaffold(
       appBar: AppNavigationBar(
-        title: '$appName - New Chat',
+        title: 'New Chat',
         backLabel: 'Environment Setup',
         onBack: _goBack,
       ),

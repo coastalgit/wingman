@@ -164,7 +164,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('${AppConstants.appName} - Project Setup'),
+        title: const Text('Project Setup'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(
@@ -177,16 +177,27 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    const Text(
+                      'Wingman is a utility to help manage your prompting experience \nfor AI coding tools, both for the IDE and CLI',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        color: Color.fromARGB(255, 10, 142, 230),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
                     const Text(
                       'Select Project Directory',
                       style: AppConstants.headingStyle,
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Choose the root directory of your project. Wingman will store configuration files in this directory.',
+                      'Choose the root directory of your project.\nWingman will store configuration files in this directory.',
                       style: AppConstants.bodyStyle,
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
 
@@ -227,6 +238,10 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.folder_open),
                                 label: const Text('Select Directory'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                                  //backgroundColor: Theme.of(context).colorScheme.primary,
+                                ),
                                 onPressed: _selectDirectory,
                               ),
                             ],
@@ -234,7 +249,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                           if (_directoryError) ...[
                             const SizedBox(height: 8),
                             const Text(
-                              'Selected directory is not valid. Please select a directory that is not a root directory.',
+                              'You cannot use a root directory (like C:\\ or D:\\). Please select a subdirectory instead.',
                               style: TextStyle(color: Colors.red),
                             ),
                           ],
@@ -256,15 +271,37 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                OutlinedButton(
+                                ElevatedButton(
                                   onPressed: () {
                                     setState(() {
                                       _hasExistingConfig = false;
                                       _existingConfig = null;
                                     });
                                   },
+                                  style: ElevatedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: Theme.of(context).colorScheme.outline,
+                                      width: 1.0,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4), // Set the radius here
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                                  ),
                                   child: const Text('Reset'),
                                 ),
+                                // OutlinedButton(
+                                //   onPressed: () {
+                                //     setState(() {
+                                //       _hasExistingConfig = false;
+                                //       _existingConfig = null;
+                                //     });
+                                //   },
+                                //   style: OutlinedButton.styleFrom(
+                                //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                                //   ),
+                                //   child: const Text('Reset'),
+                                // ),
                                 const SizedBox(width: 16),
                                 ElevatedButton(
                                   onPressed: _continueWithExisting,

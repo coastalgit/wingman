@@ -1,14 +1,41 @@
+import 'package:wingman/providers/app-providers.dart';
+import 'package:wingman/screens/environment-config-screen.dart';
+import 'package:wingman/screens/main-interface.dart';
+import 'package:wingman/screens/new-chat-screen.dart';
+import 'package:wingman/screens/project-setup.dart';
+import 'package:wingman/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:wingman/providers/app-providers.dart';
-import 'package:wingman/screens/project-setup.dart';
-import 'package:wingman/screens/environment-config-screen.dart';
-import 'package:wingman/screens/new-chat-screen.dart';
-import 'package:wingman/screens/main-interface.dart';
-import 'package:wingman/utils/constants.dart';
+import 'dart:io';
+import 'package:window_size/window_size.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Set minimum window size and default size
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    setWindowTitle('Wingman');
+    // Set minimum size to ensure UI elements have enough space
+    setWindowMinSize(const Size(600, 640));
+    // Allow the window to be maximized, but don't set a specific maximum size
+    setWindowMaxSize(Size.infinite);
+
+    // Set initial window size to approximately 1/4 width and 1/2 height of a typical screen
+    getCurrentScreen().then((screen) {
+      if (screen != null) {
+        final screenWidth = screen.visibleFrame.width;
+        final screenHeight = screen.visibleFrame.height;
+        setWindowFrame(
+          Rect.fromLTWH(
+            screenWidth / 4, // Position at 1/4 of screen width from left
+            screenHeight / 4, // Position at 1/4 of screen height from top
+            screenWidth * 0.25, // 25% of screen width (1/4)
+            screenHeight * 0.5, // 50% of screen height (1/2)
+          ),
+        );
+      }
+    });
+  }
+
   runApp(
     const ProviderScope(
       child: WingmanApp(),
@@ -22,7 +49,7 @@ class WingmanApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: AppConstants.appName,
+      title: "Wingman",
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
