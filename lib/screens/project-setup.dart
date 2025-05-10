@@ -179,10 +179,18 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Logo image
+                    const SizedBox(height: 20),
+                    Image.asset(
+                      'assets/icons/android-chrome-192x192.png',
+                      width: 120,
+                      height: 120,
+                    ),
+                    const SizedBox(height: 25),
                     const Text(
                       'Wingman is a utility to help manage your prompting experience \nfor AI coding tools, both for the IDE and CLI',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 12,
                         fontStyle: FontStyle.italic,
                         color: Color.fromARGB(255, 10, 142, 230),
                       ),
