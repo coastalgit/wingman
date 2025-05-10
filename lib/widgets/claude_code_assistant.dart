@@ -99,8 +99,9 @@ class ClaudeCodeAssistantDialog extends ConsumerWidget {
                       'Set up shortcuts for accessing context and prompt files',
                     ),
                     const SizedBox(height: 8),
-                    const CopyableCodeBlock(
-                      code: 'alias ccc="cat docs/cc_context.md"\nalias ccp="cat docs/cc_prompt.md"',
+                    CopyableCodeBlock(
+                      code:
+                          'When I type \'ccc\', read the context file and process it as context\nalias ccc="cat $wslPath/docs/cc_context.md"\n\n When I type \'ccp\', read the prompt file and process it as instructions\nalias ccp="cat $wslPath/docs/cc_prompt.md"',
                     ),
                     const SizedBox(height: 8),
                     const Text(

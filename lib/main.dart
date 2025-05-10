@@ -15,7 +15,7 @@ void main() {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     setWindowTitle('Wingman');
     // Set minimum size to ensure UI elements have enough space
-    setWindowMinSize(const Size(820, 820));
+    setWindowMinSize(const Size(950, 900));
     // Allow the window to be maximized, but don't set a specific maximum size
     setWindowMaxSize(Size.infinite);
 

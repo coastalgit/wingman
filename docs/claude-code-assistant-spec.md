@@ -27,8 +27,10 @@ cd [WSL_CONVERTED_PATH]
 ## Step 3: Define Command Aliases
 
 ```bash
-alias ccc="cat docs/cc_context.md"
-alias ccp="cat docs/cc_prompt.md"
+  # When I type 'ccc', read the context file and process it as context
+  # When I type 'ccp', read the prompt file and process it as instructions
+  alias ccc="cat /home/<user>/smartform/docs/cc_context.txt"
+  alias ccp="cat /home/<user>/smartform/docs/cc_prompt.txt"
 ```
 
 **Commands explained:**
