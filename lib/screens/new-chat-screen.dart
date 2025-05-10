@@ -7,6 +7,7 @@ import 'package:wingman/providers/app-providers.dart';
 import 'package:wingman/utils/constants.dart';
 import 'package:wingman/utils/utils.dart';
 import 'package:wingman/widgets/common_widgets.dart';
+import 'package:wingman/widgets/claude_code_assistant.dart';
 
 class NewChatScreen extends ConsumerStatefulWidget {
   const NewChatScreen({super.key});
@@ -89,12 +90,22 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
   @override
   Widget build(BuildContext context) {
     final chatsAsync = ref.watch(chatsProvider);
+    final config = ref.watch(configProvider);
 
     return Scaffold(
       appBar: AppNavigationBar(
         title: 'New Chat',
         backLabel: 'Environment Setup',
         onBack: _goBack,
+        actions: [
+          // Claude Code Assistant button
+          if (config != null && config.environments.contains(DevelopmentEnvironment.claudeCode))
+            IconButton(
+              icon: const Icon(Icons.code),
+              onPressed: () => showClaudeCodeAssistant(context, config),
+              tooltip: 'Claude Code Assistant',
+            ),
+        ],
       ),
       body: LoadingOverlay(
         isLoading: _isLoading,
@@ -109,7 +120,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                 children: [
                   // Breadcrumb navigation
                   BreadcrumbNav(
-                    items: ['Project Setup', 'Environment Setup', 'New Chat'],
+                    items: const ['Project Setup', 'Environment Setup', 'New Chat'],
                     onTaps: [
                       () => ref.read(currentScreenProvider.notifier).state = AppScreen.projectSetup,
                       _goBack,
@@ -183,6 +194,43 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                       ),
                     ),
                   ),
+
+                  // Claude Code Assistant Card
+                  if (config != null && config.environments.contains(DevelopmentEnvironment.claudeCode)) ...[
+                    const SizedBox(height: 32),
+                    const SectionHeader(title: 'Tools & Utilities'),
+                    AppCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.code, color: AppConstants.primaryColor),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Claude Code Assistant',
+                                  style: AppConstants.subheadingStyle,
+                                ),
+                                const Spacer(),
+                                SecondaryButton(
+                                  text: 'Open',
+                                  icon: Icons.launch,
+                                  onPressed: () => showClaudeCodeAssistant(context, config),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Get step-by-step instructions for using Claude Code in WSL with copy-paste commands.',
+                              style: AppConstants.bodyStyle,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   // Previous chats
                   const SizedBox(height: 32),

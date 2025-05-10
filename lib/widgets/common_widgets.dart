@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// A styled card widget with consistent styling across the app
 class AppCard extends StatelessWidget {
@@ -363,6 +364,88 @@ class _DictationButtonState extends State<DictationButton> with SingleTickerProv
           foregroundColor: widget.isListening ? Colors.red : Theme.of(context).colorScheme.onPrimary,
         ),
       ),
+    );
+  }
+}
+
+/// A code block widget with a copy button
+class CopyableCodeBlock extends StatefulWidget {
+  final String code;
+  final String? label;
+
+  const CopyableCodeBlock({
+    super.key,
+    required this.code,
+    this.label,
+  });
+
+  @override
+  State<CopyableCodeBlock> createState() => _CopyableCodeBlockState();
+}
+
+class _CopyableCodeBlockState extends State<CopyableCodeBlock> {
+  bool _copied = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.label != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(
+              widget.label!,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: SelectableText(
+                    widget.code,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 14.0,
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  _copied ? Icons.check : Icons.copy,
+                  color: _copied ? Colors.green : null,
+                ),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: widget.code));
+                  setState(() {
+                    _copied = true;
+                  });
+
+                  // Reset the copy status after 2 seconds
+                  Future.delayed(const Duration(seconds: 2), () {
+                    if (mounted) {
+                      setState(() {
+                        _copied = false;
+                      });
+                    }
+                  });
+                },
+                tooltip: 'Copy to clipboard',
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
