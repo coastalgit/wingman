@@ -1,0 +1,57 @@
+name: wingman
+description: "AI-assisted development prompt manager for enhancing workflows"
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# Version information
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Core UI
+  cupertino_icons: ^1.0.8
+  
+  # State management
+  flutter_riverpod: ^2.4.0
+  
+  # File operations
+  file_picker: ^5.5.0
+  path: ^1.8.3
+  path_provider: ^2.1.1
+  
+  # Persistence
+  shared_preferences: ^2.2.1
+  
+  # Speech recognition
+  speech_to_text: ^6.3.0
+  
+  # Markdown handling
+  flutter_markdown: ^0.6.18
+  markdown: ^7.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+# Flutter configuration
+flutter:
+  # Material design
+  uses-material-design: true
+  
+  # Assets directory for images, icons, etc.
+  assets:
+    - assets/images/
+    - assets/icons/
+  
+  # Uncomment for custom fonts
+  # fonts:
+  #   - family: Wingman
+  #     fonts:
+  #       - asset: fonts/Wingman-Regular.ttf
+  #       - asset: fonts/Wingman-Bold.ttf
+  #         weight: 700

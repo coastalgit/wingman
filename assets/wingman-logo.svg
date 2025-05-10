@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#2C3E50" />
+  
+  <!-- Wing design (stylized W) -->
+  <path d="M45,140 L70,60 L85,100 L100,60 L115,100 L130,60 L155,140 L130,120 L100,140 L70,120 Z" 
+        fill="#3498DB" stroke="#ECF0F1" stroke-width="3" />
+  
+  <!-- AI element -->
+  <circle cx="100" cy="40" r="15" fill="#E74C3C" />
+  
+  <!-- Text part (optional) -->
+  <text x="100" y="175" font-family="Arial" font-size="16" font-weight="bold" 
+        text-anchor="middle" fill="#ECF0F1">WINGMAN</text>
+</svg>
