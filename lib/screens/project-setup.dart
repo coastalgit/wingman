@@ -159,6 +159,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,7 +234,7 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
                           if (_directoryError) ...[
                             const SizedBox(height: 8),
                             const Text(
-                              'Selected directory does not appear to be a valid project. Please select a project directory.',
+                              'Selected directory is not valid. Please select a directory that is not a root directory.',
                               style: TextStyle(color: Colors.red),
                             ),
                           ],
