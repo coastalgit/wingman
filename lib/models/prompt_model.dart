@@ -36,7 +36,7 @@ class Prompt {
     required DevelopmentEnvironment environment,
   }) {
     final now = DateTime.now();
-    final formatter = DateFormat('yyyyMMdd_HHmm');
+    final formatter = DateFormat('yyyyMMdd_HHmmss_SSS');
     final id = formatter.format(now);
 
     return Prompt(

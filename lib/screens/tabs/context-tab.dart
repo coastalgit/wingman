@@ -24,12 +24,21 @@ class _ContextTabState extends ConsumerState<ContextTab> {
   void initState() {
     super.initState();
     _loadContext();
+    _contextController.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    _contextController.removeListener(_onTextChanged);
     _contextController.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    if (!_isLoading) {
+      // Prevent updating provider during loading
+      ref.read(contextContentProvider.notifier).state = _contextController.text;
+    }
   }
 
   Future<void> _loadContext() async {
@@ -40,23 +49,29 @@ class _ContextTabState extends ConsumerState<ContextTab> {
     try {
       final config = ref.read(configProvider);
       final activeChat = ref.read(activeChatProvider);
+      final currentContent = ref.read(contextContentProvider);
 
       if (config == null || activeChat == null) {
         throw Exception('Configuration or active chat not found');
       }
 
-      // Load existing context or use default template
-      final existingContext = await Context.loadContext(config);
-      if (existingContext != null) {
-        _contextController.text = existingContext;
-        ref.read(contextContentProvider.notifier).state = existingContext;
+      // If we have content in the provider, use that first
+      if (currentContent.isNotEmpty) {
+        _contextController.text = currentContent;
       } else {
-        final defaultTemplate = Context.createDefaultTemplate(
-          config.appName,
-          activeChat.name,
-        );
-        _contextController.text = defaultTemplate;
-        ref.read(contextContentProvider.notifier).state = defaultTemplate;
+        // Load existing context or use default template
+        final existingContext = await Context.loadContext(config);
+        if (existingContext != null) {
+          _contextController.text = existingContext;
+          ref.read(contextContentProvider.notifier).state = existingContext;
+        } else {
+          final defaultTemplate = Context.createDefaultTemplate(
+            config.appName,
+            activeChat.name,
+          );
+          _contextController.text = defaultTemplate;
+          ref.read(contextContentProvider.notifier).state = defaultTemplate;
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -233,8 +248,7 @@ class _ContextTabState extends ConsumerState<ContextTab> {
             const SizedBox(height: 16),
 
             // Editor area
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.25, // 50% reduction from the expanded size
+            Expanded(
               child: AppCard(
                 padding: EdgeInsets.zero,
                 child: _isPreviewMode

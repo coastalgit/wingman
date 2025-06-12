@@ -164,7 +164,24 @@ class _ProjectSetupScreenState extends ConsumerState<ProjectSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Project Setup v1.1'),
+        title: Consumer(
+          builder: (context, ref, child) {
+            final versionAsync = ref.watch(appVersionProvider);
+            return versionAsync.when(
+              data: (version) => Text(
+                'Project Setup v$version',
+                style: TextStyle(
+                  fontSize: Theme.of(context).textTheme.titleLarge?.fontSize != null
+                      ? Theme.of(context).textTheme.titleLarge!.fontSize! * 0.8
+                      : 16.0, // 20% smaller than default
+                ),
+              ),
+              loading: () => const Text('Project Setup'),
+              error: (_, __) => const Text('Project Setup'),
+            );
+          },
+        ),
+        toolbarHeight: 56.0, // Standard height for consistency
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(

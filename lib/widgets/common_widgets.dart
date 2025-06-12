@@ -236,12 +236,30 @@ class AppNavigationBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: Text(title),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: Theme.of(context).textTheme.titleLarge?.fontSize != null
+              ? Theme.of(context).textTheme.titleLarge!.fontSize! * 0.8
+              : 16.0, // 20% smaller than default
+        ),
+      ),
+      toolbarHeight: 56.0, // Standard height for consistency
       leading: onBack != null
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: onBack,
-              tooltip: backLabel,
+          ? Container(
+              alignment: Alignment.center,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: onBack,
+                tooltip: backLabel,
+                iconSize: 22, // Slightly smaller icon
+                padding: EdgeInsets.zero, // Remove default padding
+                constraints: const BoxConstraints(), // Remove default constraints
+                style: IconButton.styleFrom(
+                  shape: const CircleBorder(),
+                  backgroundColor: Colors.transparent,
+                ),
+              ),
             )
           : null,
       actions: actions,
@@ -249,7 +267,7 @@ class AppNavigationBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(56.0); // Fixed height for consistency
 }
 
 /// Loading overlay to show during async operations

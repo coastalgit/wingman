@@ -40,12 +40,30 @@ class _EnvironmentConfigScreenState extends ConsumerState<EnvironmentConfigScree
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Environment Configuration'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            ref.read(currentScreenProvider.notifier).state = AppScreen.projectSetup;
-          },
+        title: Text(
+          'Environment Configuration',
+          style: TextStyle(
+            fontSize: Theme.of(context).textTheme.titleLarge?.fontSize != null
+                ? Theme.of(context).textTheme.titleLarge!.fontSize! * 0.8
+                : 16.0, // 20% smaller than default
+          ),
+        ),
+        toolbarHeight: 56.0, // Standard height for consistency
+        leading: Container(
+          alignment: Alignment.center,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, size: 22),
+            onPressed: () {
+              ref.read(currentScreenProvider.notifier).state = AppScreen.projectSetup;
+            },
+            tooltip: 'Back to Project Setup',
+            padding: EdgeInsets.zero, // Remove default padding
+            constraints: const BoxConstraints(), // Remove default constraints
+            style: IconButton.styleFrom(
+              shape: const CircleBorder(),
+              backgroundColor: Colors.transparent,
+            ),
+          ),
         ),
       ),
       body: SafeArea(

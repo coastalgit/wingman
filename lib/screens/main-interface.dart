@@ -55,12 +55,31 @@ class _MainInterfaceScreenState extends ConsumerState<MainInterfaceScreen> with 
     return Scaffold(
       appBar: AppBar(
         //title: Text('Chat:[$chatName]'),
-        title: Text(chatName),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: _goToNewChat,
-          tooltip: 'New Chat',
+        title: Text(
+          chatName,
+          style: TextStyle(
+            fontSize: Theme.of(context).textTheme.titleLarge?.fontSize != null
+                ? Theme.of(context).textTheme.titleLarge!.fontSize! * 0.8
+                : 16.0, // 20% smaller than default
+          ),
+        ),
+        toolbarHeight: 56.0, // Standard height for consistency
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.primaryContainer,
+        leading: Container(
+          alignment: Alignment.center,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, size: 22),
+            onPressed: _goToNewChat,
+            tooltip: 'New Chat',
+            padding: EdgeInsets.zero, // Remove default padding
+            constraints: const BoxConstraints(), // Remove default constraints
+            style: IconButton.styleFrom(
+              shape: const CircleBorder(),
+              backgroundColor: Colors.transparent,
+            ),
+          ),
         ),
         actions: [
           PopupMenuButton<String>(
@@ -95,24 +114,32 @@ class _MainInterfaceScreenState extends ConsumerState<MainInterfaceScreen> with 
             ],
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 4,
-          automaticIndicatorColorAdjustment: true,
-          //labelColor: Theme.of(context).colorScheme.primary,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.6),
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.description),
-              text: 'Context',
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.surface
+                : Theme.of(context).colorScheme.primaryContainer,
+            padding: const EdgeInsets.symmetric(horizontal: AppConstants.defaultPadding),
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 4,
+              automaticIndicatorColorAdjustment: true,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white.withOpacity(0.6),
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.description),
+                  text: 'Context',
+                ),
+                Tab(
+                  icon: Icon(Icons.chat),
+                  text: 'Prompts',
+                ),
+              ],
             ),
-            Tab(
-              icon: Icon(Icons.chat),
-              text: 'Prompts',
-            ),
-          ],
+          ),
         ),
       ),
       body: SafeArea(

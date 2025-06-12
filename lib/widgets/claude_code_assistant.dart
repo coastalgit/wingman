@@ -149,8 +149,7 @@ class ClaudeCodeAssistantDialog extends ConsumerWidget {
                     const SizedBox(height: 8),
                     const CopyableCodeBlock(
                       code: 'ccp',
-                    ),
-                    const SizedBox(height: 8),
+                    ),                    const SizedBox(height: 8),
                     const Text(
                       '• ccp reads your prompt file (cc_prompt.md) and sends it to Claude\n'
                       '• Each time you update your prompt in Wingman, use this command to send it',

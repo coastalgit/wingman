@@ -62,6 +62,20 @@ class WingmanApp extends ConsumerWidget {
         cardTheme: const CardTheme(
           elevation: 4,
         ),
+        appBarTheme: AppBarTheme(
+          toolbarHeight: 56.0,
+          titleTextStyle: TextStyle(
+            fontSize: 16.0, // Already reduced size
+            fontWeight: FontWeight.w500,
+            color: ColorScheme.fromSeed(
+              seedColor: AppConstants.primaryColor,
+              brightness: Brightness.dark,
+            ).onSurface,
+          ),
+          iconTheme: const IconThemeData(
+            size: 22,
+          ),
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             shape: RoundedRectangleBorder(
@@ -77,6 +91,20 @@ class WingmanApp extends ConsumerWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: AppConstants.primaryColor),
         useMaterial3: true,
+        appBarTheme: AppBarTheme(
+          toolbarHeight: 56.0,
+          titleTextStyle: TextStyle(
+            fontSize: 16.0, // Already reduced size
+            fontWeight: FontWeight.w500,
+            color: ColorScheme.fromSeed(
+              seedColor: AppConstants.primaryColor,
+              brightness: Brightness.light,
+            ).onSurface,
+          ),
+          iconTheme: const IconThemeData(
+            size: 22,
+          ),
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             shape: RoundedRectangleBorder(

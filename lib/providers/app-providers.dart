@@ -3,6 +3,7 @@ import 'package:wingman/models/chat-model.dart';
 import 'package:wingman/models/context-model.dart';
 import '../models/config_model.dart';
 import '../models/prompt_model.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// Current application state for navigation
 enum AppScreen {
@@ -93,3 +94,9 @@ final statusMessageProvider = StateProvider<String>((ref) => '');
 
 /// Provider for currently processing operations (loading indicator)
 final isProcessingProvider = StateProvider<bool>((ref) => false);
+
+/// Provider for the app version
+final appVersionProvider = FutureProvider<String>((ref) async {
+  final packageInfo = await PackageInfo.fromPlatform();
+  return packageInfo.version;
+});

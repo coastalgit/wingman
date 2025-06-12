@@ -21,7 +21,6 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
   late TabController _environmentTabController;
   bool _isLoading = false;
   bool _isListening = false;
-  String? _lastPromptBeforeClear;
   bool _showHistory = false;
 
   final SpeechService _speechService = SpeechService();
@@ -48,7 +47,21 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
     final environments = ref.read(selectedEnvironmentsProvider);
 
     for (final env in environments) {
-      _promptControllers[env] = TextEditingController();
+      final controller = TextEditingController();
+      _promptControllers[env] = controller;
+
+      // Add listener to update provider when text changes
+      controller.addListener(() {
+        if (!_isLoading) {
+          ref.read(promptContentProvider(env).notifier).state = controller.text;
+        }
+      });
+
+      // Initialize with current provider value
+      final currentContent = ref.read(promptContentProvider(env));
+      if (currentContent.isNotEmpty) {
+        controller.text = currentContent;
+      }
     }
 
     // Initialize tab controller
@@ -99,10 +112,19 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
       for (final env in environments) {
         final controller = _promptControllers[env];
         if (controller != null) {
-          final existingPrompt = await Prompt.loadActivePrompt(config, env);
-          if (existingPrompt != null) {
-            controller.text = existingPrompt;
-            ref.read(promptContentProvider(env).notifier).state = existingPrompt;
+          // First check if we have content in the provider
+          final providerContent = ref.read(promptContentProvider(env));
+
+          if (providerContent.isNotEmpty) {
+            // Use content from provider (user may have edited it)
+            controller.text = providerContent;
+          } else {
+            // Load from file if provider is empty
+            final existingPrompt = await Prompt.loadActivePrompt(config, env);
+            if (existingPrompt != null) {
+              controller.text = existingPrompt;
+              ref.read(promptContentProvider(env).notifier).state = existingPrompt;
+            }
           }
         }
       }
@@ -146,11 +168,17 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
         environment: environment,
       );
 
+      // Save to history
+      await prompt.saveToHistory(config);
+
       // Save to active prompt file
       await prompt.saveToActiveFile(config);
 
       // Update provider
       ref.read(promptContentProvider(environment).notifier).state = promptContent;
+
+      // Refresh history
+      ref.invalidate(promptHistoryProvider(environment));
 
       if (mounted) {
         Utils.showSnackBar(context, 'Prompt saved successfully');
@@ -207,8 +235,12 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
       // Refresh history
       ref.invalidate(promptHistoryProvider(environment));
 
+      // Clear the text area after saving
+      controller.clear();
+      ref.read(promptContentProvider(environment).notifier).state = '';
+
       if (mounted) {
-        Utils.showSnackBar(context, 'New prompt created');
+        Utils.showSnackBar(context, 'New prompt created and editor cleared');
       }
     } catch (e) {
       if (mounted) {
@@ -218,27 +250,6 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
       setState(() {
         _isLoading = false;
       });
-    }
-  }
-
-  void _clearPrompt(DevelopmentEnvironment environment) {
-    final controller = _promptControllers[environment];
-    if (controller != null) {
-      // Save current text for restore
-      _lastPromptBeforeClear = controller.text;
-
-      // Clear text
-      controller.clear();
-      ref.read(promptContentProvider(environment).notifier).state = '';
-    }
-  }
-
-  void _restorePrompt(DevelopmentEnvironment environment) {
-    final controller = _promptControllers[environment];
-    if (controller != null && _lastPromptBeforeClear != null) {
-      controller.text = _lastPromptBeforeClear!;
-      ref.read(promptContentProvider(environment).notifier).state = _lastPromptBeforeClear!;
-      _lastPromptBeforeClear = null;
     }
   }
 
@@ -315,7 +326,6 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final environments = ref.watch(selectedEnvironmentsProvider);
-    final selectedEnv = ref.watch(selectedPromptTabProvider);
 
     if (environments.isEmpty) {
       return const Center(
@@ -362,7 +372,6 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
 
   Widget _buildPromptEditor(DevelopmentEnvironment environment) {
     final controller = _promptControllers[environment] ?? TextEditingController();
-    final isRestore = _lastPromptBeforeClear != null;
 
     String command;
     switch (environment) {
@@ -396,29 +405,8 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
                     vertical: 24,
                   ),
                 ),
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.save_as),
                 label: const Text('New Prompt'),
-              ),
-              const SizedBox(width: 8),
-
-              // Clear/Restore button
-              ElevatedButton.icon(
-                onPressed: isRestore ? () => _restorePrompt(environment) : () => _clearPrompt(environment),
-                icon: Icon(isRestore ? Icons.restore : Icons.clear_all),
-                label: Text(isRestore ? 'Restore' : 'Clear'),
-                // style: ElevatedButton.styleFrom(
-                //   backgroundColor: isRestore ? Theme.of(context).colorScheme.secondary : null,
-                // ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isRestore ? Theme.of(context).colorScheme.secondary : null,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 24,
-                  ),
-                ),
               ),
 
               const Spacer(),
@@ -494,9 +482,6 @@ class _PromptsTabState extends ConsumerState<PromptsTab> with SingleTickerProvid
                   fontFamily: 'monospace',
                   fontSize: 14,
                 ),
-                onChanged: (value) {
-                  ref.read(promptContentProvider(environment).notifier).state = value;
-                },
               ),
             ),
           ),
