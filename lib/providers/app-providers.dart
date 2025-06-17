@@ -43,16 +43,27 @@ final chatsProvider = FutureProvider<List<Chat>>((ref) async {
 /// Provider for the active chat
 final activeChatProvider = StateProvider<Chat?>((ref) => null);
 
-/// Provider for the editor contents (context)
-final contextContentProvider = StateProvider<String>((ref) {
+/// Provider for the computed context content based on active chat
+final computedContextProvider = Provider<String>((ref) {
   final config = ref.watch(configProvider);
   final activeChat = ref.watch(activeChatProvider);
 
   if (config != null && activeChat != null) {
+    // If the chat has saved context, use that
+    if (activeChat.context != null && activeChat.context!.isNotEmpty) {
+      return activeChat.context!;
+    }
+    // Otherwise use the default template
     return Context.createDefaultTemplate(config.appName, activeChat.name);
   }
 
   return '';
+});
+
+/// Provider for the editor contents (context) - can be modified
+final contextContentProvider = StateProvider<String>((ref) {
+  // Watch the computed context and initialize with it
+  return ref.watch(computedContextProvider);
 });
 
 /// Provider for whether the context is loading

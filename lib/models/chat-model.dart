@@ -13,11 +13,15 @@ class Chat {
   
   /// When the chat was last accessed
   DateTime lastAccessedAt;
+  
+  /// The context content for this chat
+  String? context;
 
   Chat({
     required this.name,
     required this.createdAt,
     required this.lastAccessedAt,
+    this.context,
   });
 
   /// Creates a new chat with the current timestamp
@@ -30,6 +34,7 @@ class Chat {
       name: name,
       createdAt: now,
       lastAccessedAt: now,
+      context: null,
     );
   }
 
@@ -44,6 +49,7 @@ class Chat {
       'name': name,
       'createdAt': createdAt.toIso8601String(),
       'lastAccessedAt': lastAccessedAt.toIso8601String(),
+      'context': context,
     };
   }
 
@@ -53,6 +59,7 @@ class Chat {
       name: json['name'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       lastAccessedAt: DateTime.parse(json['lastAccessedAt'] as String),
+      context: json['context'] as String?,
     );
   }
 

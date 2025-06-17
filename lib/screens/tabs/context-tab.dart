@@ -23,8 +23,11 @@ class _ContextTabState extends ConsumerState<ContextTab> {
   @override
   void initState() {
     super.initState();
-    _loadContext();
     _contextController.addListener(_onTextChanged);
+    // Load context after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadContext();
+    });
   }
 
   @override
@@ -49,30 +52,18 @@ class _ContextTabState extends ConsumerState<ContextTab> {
     try {
       final config = ref.read(configProvider);
       final activeChat = ref.read(activeChatProvider);
-      final currentContent = ref.read(contextContentProvider);
 
       if (config == null || activeChat == null) {
         throw Exception('Configuration or active chat not found');
       }
 
-      // If we have content in the provider, use that first
-      if (currentContent.isNotEmpty) {
-        _contextController.text = currentContent;
-      } else {
-        // Load existing context or use default template
-        final existingContext = await Context.loadContext(config);
-        if (existingContext != null) {
-          _contextController.text = existingContext;
-          ref.read(contextContentProvider.notifier).state = existingContext;
-        } else {
-          final defaultTemplate = Context.createDefaultTemplate(
-            config.appName,
-            activeChat.name,
-          );
-          _contextController.text = defaultTemplate;
-          ref.read(contextContentProvider.notifier).state = defaultTemplate;
-        }
-      }
+      // Use the computed context based on the active chat
+      // This will use saved context if available, or default template if not
+      final computedContext = ref.read(computedContextProvider);
+      
+      _contextController.text = computedContext;
+      ref.read(contextContentProvider.notifier).state = computedContext;
+      
     } catch (e) {
       if (mounted) {
         Utils.showSnackBar(context, 'Error loading context: $e');
@@ -109,6 +100,16 @@ class _ContextTabState extends ConsumerState<ContextTab> {
       // Save to all environment context files
       await contextModel.saveToContextFiles(config);
 
+      // Update the chat with the new context
+      activeChat.context = contextContent;
+      await activeChat.saveChat(config);
+
+      // Update the active chat provider with the updated chat
+      ref.read(activeChatProvider.notifier).state = activeChat;
+      
+      // Refresh the chats provider to reload the data
+      ref.invalidate(chatsProvider);
+
       // Update provider
       ref.read(contextContentProvider.notifier).state = contextContent;
 
@@ -130,6 +131,14 @@ class _ContextTabState extends ConsumerState<ContextTab> {
   Widget build(BuildContext context) {
     final config = ref.watch(configProvider);
     final environments = ref.watch(selectedEnvironmentsProvider);
+    
+    // Listen for changes in computed context and update the text controller
+    ref.listen<String>(computedContextProvider, (previous, next) {
+      if (previous != next && !_isLoading) {
+        _contextController.text = next;
+        ref.read(contextContentProvider.notifier).state = next;
+      }
+    });
 
     return LoadingOverlay(
       isLoading: _isLoading,

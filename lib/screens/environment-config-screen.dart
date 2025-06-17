@@ -12,13 +12,23 @@ class EnvironmentConfigScreen extends ConsumerStatefulWidget {
 }
 
 class _EnvironmentConfigScreenState extends ConsumerState<EnvironmentConfigScreen> {
-  final bool _isLoading = false;
+  bool _isLoading = false;
   late List<DevelopmentEnvironment> _selectedEnvironments;
 
   @override
   void initState() {
     super.initState();
-    _selectedEnvironments = ref.read(selectedEnvironmentsProvider);
+    // Initialize with existing environments from config or provider default
+    final config = ref.read(configProvider);
+    if (config != null) {
+      // If we have a loaded config, use its environments
+      _selectedEnvironments = List.from(config.environments);
+      // Also update the provider to stay in sync
+      ref.read(selectedEnvironmentsProvider.notifier).state = _selectedEnvironments;
+    } else {
+      // Fall back to provider default
+      _selectedEnvironments = ref.read(selectedEnvironmentsProvider);
+    }
   }
 
   void _toggleEnvironment(DevelopmentEnvironment env) {
@@ -31,9 +41,29 @@ class _EnvironmentConfigScreenState extends ConsumerState<EnvironmentConfigScree
     });
   }
 
-  void _saveAndContinue() {
-    ref.read(selectedEnvironmentsProvider.notifier).state = _selectedEnvironments;
-    ref.read(currentScreenProvider.notifier).state = AppScreen.newChat;
+  Future<void> _saveAndContinue() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      // Update the provider
+      ref.read(selectedEnvironmentsProvider.notifier).state = _selectedEnvironments;
+      
+      // Update and save the config if it exists
+      final config = ref.read(configProvider);
+      if (config != null) {
+        final updatedConfig = config.copyWith(environments: _selectedEnvironments);
+        ref.read(configProvider.notifier).state = updatedConfig;
+        await updatedConfig.saveConfig();
+      }
+      
+      ref.read(currentScreenProvider.notifier).state = AppScreen.newChat;
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
