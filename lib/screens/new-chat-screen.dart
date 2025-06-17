@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as path;
 
 import 'package:wingman/models/chat-model.dart';
 import 'package:wingman/models/config_model.dart';
@@ -97,15 +99,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
         title: 'New Chat',
         backLabel: 'Environment Setup',
         onBack: _goBack,
-        actions: [
-          // Claude Code Assistant button
-          if (config != null && config.environments.contains(DevelopmentEnvironment.claudeCode))
-            IconButton(
-              icon: const Icon(Icons.code),
-              onPressed: () => showClaudeCodeAssistant(context, config),
-              tooltip: 'Claude Code Assistant',
-            ),
-        ],
+        actions: [],
       ),
       body: LoadingOverlay(
         isLoading: _isLoading,
@@ -199,37 +193,7 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
                   if (config != null && config.environments.contains(DevelopmentEnvironment.claudeCode)) ...[
                     const SizedBox(height: 32),
                     const SectionHeader(title: 'Tools & Utilities'),
-                    AppCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.code, color: AppConstants.primaryColor),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Claude Code Assistant',
-                                  style: AppConstants.subheadingStyle,
-                                ),
-                                const Spacer(),
-                                SecondaryButton(
-                                  text: 'Open',
-                                  icon: Icons.launch,
-                                  onPressed: () => showClaudeCodeAssistant(context, config),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Get step-by-step instructions for using Claude Code in WSL with copy-paste commands.',
-                              style: AppConstants.bodyStyle,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    ClaudeCodeAssistantCard(config: config),
                   ],
 
                   // Previous chats
@@ -340,6 +304,106 @@ class _NewChatScreenState extends ConsumerState<NewChatScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class ClaudeCodeAssistantCard extends StatefulWidget {
+  final WingmanConfig config;
+
+  const ClaudeCodeAssistantCard({
+    super.key,
+    required this.config,
+  });
+
+  @override
+  State<ClaudeCodeAssistantCard> createState() => _ClaudeCodeAssistantCardState();
+}
+
+class _ClaudeCodeAssistantCardState extends State<ClaudeCodeAssistantCard> {
+  bool _claudeMdExists = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkClaudeMdFile();
+  }
+
+  Future<void> _checkClaudeMdFile() async {
+    final claudeMdPath = path.join(widget.config.projectDirectory, 'CLAUDE.md');
+    final file = File(claudeMdPath);
+    
+    if (mounted) {
+      setState(() {
+        _claudeMdExists = file.existsSync();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.code, color: AppConstants.primaryColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'Claude Code Assistant',
+                  style: AppConstants.subheadingStyle,
+                ),
+                const SizedBox(width: 12),
+                // CLAUDE.md status chip
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _claudeMdExists ? Colors.green : Colors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _claudeMdExists ? Icons.check_circle : Icons.warning,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _claudeMdExists ? 'CLAUDE.md exists' : 'CLAUDE.md missing',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                SecondaryButton(
+                  text: 'Open',
+                  icon: Icons.launch,
+                  onPressed: () async {
+                    await showClaudeCodeAssistant(context, widget.config);
+                    // Refresh the status after closing the dialog
+                    _checkClaudeMdFile();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Get step-by-step instructions for using Claude Code in WSL with copy-paste commands.',
+              style: AppConstants.bodyStyle,
+            ),
+          ],
         ),
       ),
     );
