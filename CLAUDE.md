@@ -87,3 +87,15 @@ Core: `flutter_riverpod`, `flutter_markdown`, `file_picker`, `path_provider`, `s
 ## Future Direction
 
 The app's core value (prompt/context management for Claude Code) may be better served by Claude Code's own extensibility mechanisms (plugins, MCP servers, slash commands) which have matured since the hackathon. Consider migrating functionality into those formats.
+
+## /checkpoint
+
+When the user says "/checkpoint" or asks to create a checkpoint, create a checkpoint file at `docs/checkpoints/YYYY-MM-DD-HHMM.md` containing:
+1. **Session Summary** — what was discussed and decided this session
+2. **Current State** — where we are in the brainstorm/design/build process
+3. **Open Questions** — unresolved decisions or items pending input
+4. **Next Steps** — what to do when resuming in a new chat
+5. **Key Files Modified** — list of files created or changed this session
+6. **Decisions Made** — concrete choices locked in (tech stack, architecture, scope, etc.)
+
+The checkpoint must contain enough context for a fresh Claude Code session to continue seamlessly.
