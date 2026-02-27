@@ -1,5 +1,8 @@
 // ────────────────────────────────────────────────────────
-//  Wingman Web Demo - Frontend Application
+//  Wingman Web Demo — Application
+//  Note: innerHTML usage with marked.parse is intentional
+//  for local-only markdown preview. Production build would
+//  use DOMPurify for sanitization.
 // ────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -160,8 +163,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const TOOL_COLORS = {
-    'claude-code': '#d4a574',
-    'cursor': '#7cacf8',
+    'claude-code': '#df6035',
+    'cursor': '#7399bf',
     'gemini-cli': '#8bc78b',
   };
 
@@ -174,8 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── State ──────────────────────────────────────────
 
   let activeSessionId = 'session-1';
-  let activeTool = 'claude-code';
   let activeFeature = 'context';
+  let activeHistoryId = null;
 
   // ─── DOM References ─────────────────────────────────
 
@@ -190,26 +193,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusProjectEl = document.getElementById('statusProject');
   const statusBranchEl = document.getElementById('statusBranch');
   const statusToolEl = document.getElementById('statusTool');
-  const statusTimeEl = document.getElementById('statusTime');
   const statusMessageEl = document.getElementById('statusMessage');
-  const activeSessionNameEl = document.getElementById('activeSessionName');
-  const activeSessionToolEl = document.getElementById('activeSessionTool');
+  const headerSessionNameEl = document.getElementById('headerSessionName');
+  const headerSessionDotEl = document.getElementById('headerSessionDot');
   const toastContainerEl = document.getElementById('toastContainer');
-  const sendToToolEl = document.getElementById('sendToTool');
 
-  // ─── Safe DOM Helpers ───────────────────────────────
-
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
+  // ─── Helpers ──────────────────────────────────────
 
   function clearChildren(el) {
-    while (el.firstChild) {
-      el.removeChild(el.firstChild);
-    }
+    while (el.firstChild) el.removeChild(el.firstChild);
   }
+
+  // ─── Session List ─────────────────────────────────
 
   function createSessionItem(session) {
     const item = document.createElement('div');
@@ -247,13 +242,23 @@ document.addEventListener('DOMContentLoaded', () => {
     item.appendChild(meta);
 
     item.addEventListener('click', () => selectSession(session.id));
-
     return item;
   }
 
+  function renderSessions() {
+    const total = SESSIONS.reduce((sum, s) => sum + s.promptCount, 0);
+    totalPromptsEl.textContent = total;
+    clearChildren(sessionListEl);
+    SESSIONS.forEach(session => {
+      sessionListEl.appendChild(createSessionItem(session));
+    });
+  }
+
+  // ─── History List ─────────────────────────────────
+
   function createHistoryItem(prompt) {
     const item = document.createElement('div');
-    item.className = 'history-item';
+    item.className = 'history-item' + (prompt.id === activeHistoryId ? ' active' : '');
     item.dataset.promptId = prompt.id;
 
     const text = document.createElement('div');
@@ -268,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tokens = document.createElement('span');
     tokens.className = 'history-item-tokens';
-    tokens.textContent = '~' + prompt.tokens + ' tokens';
+    tokens.textContent = '~' + prompt.tokens + ' tok';
 
     meta.appendChild(time);
     meta.appendChild(tokens);
@@ -277,24 +282,14 @@ document.addEventListener('DOMContentLoaded', () => {
     item.appendChild(meta);
 
     item.addEventListener('click', () => {
+      activeHistoryId = prompt.id;
       promptEditorEl.value = prompt.text;
       updateTokenEstimate();
+      renderHistory(document.getElementById('historySearch').value);
       showToast('Prompt loaded into editor', 'info');
     });
 
     return item;
-  }
-
-  // ─── Rendering Functions ────────────────────────────
-
-  function renderSessions() {
-    const total = SESSIONS.reduce((sum, s) => sum + s.promptCount, 0);
-    totalPromptsEl.textContent = total;
-
-    clearChildren(sessionListEl);
-    SESSIONS.forEach(session => {
-      sessionListEl.appendChild(createSessionItem(session));
-    });
   }
 
   function renderHistory(filter) {
@@ -308,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (filtered.length === 0) {
       const empty = document.createElement('div');
-      empty.style.cssText = 'padding: 20px; text-align: center; color: var(--text-faint); font-size: 12px;';
+      empty.style.cssText = 'padding: 24px 12px; text-align: center; color: var(--text-4); font-size: 12px;';
       empty.textContent = filter ? 'No matching prompts' : 'No prompt history yet';
       historyListEl.appendChild(empty);
       return;
@@ -319,25 +314,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ─── Context Preview ──────────────────────────────
+
   function renderContextPreview() {
     const markdown = contextEditorEl.value;
     if (!markdown.trim()) {
       clearChildren(contextPreviewEl);
       const placeholder = document.createElement('p');
-      placeholder.className = 'preview-placeholder';
+      placeholder.className = 'preview-empty';
       placeholder.textContent = 'Start typing to see a live preview...';
       contextPreviewEl.appendChild(placeholder);
       return;
     }
     try {
-      // marked.parse returns sanitized HTML from markdown syntax only
-      // This is a local demo with no user-submitted content from external sources
+      // Local-only demo: markdown is user's own content, not external input.
+      // Production would use DOMPurify here.
       const rendered = marked.parse(markdown);
-      contextPreviewEl.innerHTML = rendered;
+      contextPreviewEl.innerHTML = rendered;  // eslint-disable-line no-unsanitized/property
     } catch (e) {
       clearChildren(contextPreviewEl);
       const errMsg = document.createElement('p');
-      errMsg.style.color = 'var(--accent-red)';
+      errMsg.style.color = 'var(--danger)';
       errMsg.textContent = 'Markdown parse error';
       contextPreviewEl.appendChild(errMsg);
     }
@@ -349,63 +346,46 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateTokenEstimate() {
-    // Rough estimate: ~4 chars per token
     const chars = promptEditorEl.value.length;
     const estimate = Math.round(chars / 4);
     tokenEstimateEl.textContent = '~' + estimate.toLocaleString() + ' tokens';
   }
 
-  function updateStatusBar() {
+  // ─── Status / Header Updates ──────────────────────
+
+  function updateUI() {
     const session = SESSIONS.find(s => s.id === activeSessionId);
-    if (session) {
-      statusProjectEl.textContent = session.project;
-      statusBranchEl.textContent = session.branch;
-      statusToolEl.textContent = TOOL_NAMES[session.tool] || session.tool;
-      activeSessionNameEl.textContent = session.name;
-      activeSessionToolEl.textContent = session.tool;
-    }
+    if (!session) return;
+
+    statusProjectEl.textContent = session.project;
+    statusBranchEl.textContent = session.branch;
+    statusToolEl.textContent = TOOL_NAMES[session.tool] || session.tool;
+    headerSessionNameEl.textContent = session.name;
+    headerSessionDotEl.style.background = TOOL_COLORS[session.tool];
+    headerSessionDotEl.style.boxShadow = '0 0 6px ' + TOOL_COLORS[session.tool] + '66';
   }
 
-  function updateClock() {
-    const now = new Date();
-    const h = now.getHours().toString().padStart(2, '0');
-    const m = now.getMinutes().toString().padStart(2, '0');
-    statusTimeEl.textContent = h + ':' + m;
-  }
-
-  // ─── Actions ────────────────────────────────────────
+  // ─── Actions ──────────────────────────────────────
 
   function selectSession(sessionId) {
     activeSessionId = sessionId;
-    const session = SESSIONS.find(s => s.id === sessionId);
+    activeHistoryId = null;
 
-    // Update tool tabs to match session's tool
-    if (session) {
-      setActiveTool(session.tool);
-      sendToToolEl.value = session.tool;
-    }
-
-    // Load context for this session
     contextEditorEl.value = SAMPLE_CONTEXTS[sessionId] || '';
     renderContextPreview();
     updateContextCharCount();
 
+    promptEditorEl.value = '';
+    updateTokenEstimate();
+
     renderSessions();
     renderHistory();
-    updateStatusBar();
-  }
-
-  function setActiveTool(tool) {
-    activeTool = tool;
-    document.querySelectorAll('.tool-tab').forEach(tab => {
-      tab.classList.toggle('active', tab.dataset.tool === tool);
-    });
-    updateStatusBar();
+    updateUI();
   }
 
   function setActiveFeature(feature) {
     activeFeature = feature;
-    document.querySelectorAll('.feature-tab').forEach(tab => {
+    document.querySelectorAll('.feature-nav-btn').forEach(tab => {
       tab.classList.toggle('active', tab.dataset.feature === feature);
     });
     document.getElementById('contextPanel').classList.toggle('active', feature === 'context');
@@ -437,38 +417,26 @@ document.addEventListener('DOMContentLoaded', () => {
     duration = duration || 3000;
     statusMessageEl.textContent = message;
     if (duration > 0) {
-      setTimeout(() => {
-        statusMessageEl.textContent = 'Ready';
-      }, duration);
+      setTimeout(() => { statusMessageEl.textContent = 'Ready'; }, duration);
     }
   }
 
-  // ─── Event Listeners ────────────────────────────────
+  // ─── Event Listeners ──────────────────────────────
 
-  // Tool tabs
-  document.querySelectorAll('.tool-tab').forEach(tab => {
+  // Feature nav
+  document.querySelectorAll('.feature-nav-btn').forEach(tab => {
     tab.addEventListener('click', () => {
-      setActiveTool(tab.dataset.tool);
-      showToast('Switched to ' + (TOOL_NAMES[tab.dataset.tool] || tab.dataset.tool), 'info');
+      if (tab.dataset.feature) setActiveFeature(tab.dataset.feature);
     });
   });
 
-  // Feature tabs
-  document.querySelectorAll('.feature-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      if (tab.dataset.feature) {
-        setActiveFeature(tab.dataset.feature);
-      }
-    });
-  });
-
-  // Context editor - live preview
+  // Context editor
   contextEditorEl.addEventListener('input', () => {
     renderContextPreview();
     updateContextCharCount();
   });
 
-  // Prompt editor - token estimate
+  // Prompt editor
   promptEditorEl.addEventListener('input', () => {
     updateTokenEstimate();
   });
@@ -479,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory(historySearchEl.value);
   });
 
-  // Send prompt button
+  // Save prompt
   document.getElementById('sendPromptBtn').addEventListener('click', () => {
     const text = promptEditorEl.value.trim();
     if (!text) {
@@ -487,11 +455,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Simulate sending
-    const tool = TOOL_NAMES[sendToToolEl.value] || sendToToolEl.value;
-    setStatusMessage('Sending to ' + tool + '...');
+    const session = SESSIONS.find(s => s.id === activeSessionId);
+    const tool = session ? TOOL_NAMES[session.tool] : 'tool';
 
-    // Add to history (mock)
+    setStatusMessage('Saving prompt...');
+
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newPrompt = {
@@ -506,25 +474,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     PROMPT_HISTORY[activeSessionId].unshift(newPrompt);
 
-    // Update session prompt count
-    const session = SESSIONS.find(s => s.id === activeSessionId);
-    if (session) {
-      session.promptCount++;
-    }
+    if (session) session.promptCount++;
 
-    // Clear editor, re-render
     promptEditorEl.value = '';
+    activeHistoryId = newPrompt.id;
     updateTokenEstimate();
     renderHistory(historySearchEl.value);
     renderSessions();
 
     setTimeout(() => {
-      showToast('Prompt sent to ' + tool, 'success');
+      showToast('Prompt saved \u2014 use /ccp in ' + tool, 'success');
       setStatusMessage('Ready');
-    }, 600);
+    }, 400);
   });
 
-  // Insert template button (context)
+  // Template button
   document.getElementById('insertTemplateBtn').addEventListener('click', () => {
     const template = '# Project Context\n\n## Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n';
     contextEditorEl.value = template;
@@ -533,50 +497,33 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Template inserted', 'success');
   });
 
-  // Attach context button
+  // Attach context
   document.getElementById('attachContextBtn').addEventListener('click', () => {
     const context = contextEditorEl.value.trim();
     if (!context) {
-      showToast('No context to attach - switch to Context tab to write some', 'info');
+      showToast('No context to attach \u2014 write some in the Context tab', 'info');
       return;
     }
     const lines = context.split('\n').length;
     showToast('Context attached (' + lines + ' lines)', 'success');
   });
 
-  // Templates button (prompts)
-  document.getElementById('loadTemplateBtn').addEventListener('click', () => {
-    const templates = [
-      'Refactor {function} to improve readability and add error handling.',
-      'Write unit tests for {module}. Cover edge cases and error paths.',
-      'Add TypeScript types to {file}. Use strict mode, no `any` types.',
-      'Review this code for security vulnerabilities and suggest fixes.',
-      'Create a migration to add {column} to the {table} table.',
-    ];
-    const template = templates[Math.floor(Math.random() * templates.length)];
-    promptEditorEl.value = template;
-    updateTokenEstimate();
-    showToast('Template loaded - customize the {placeholders}', 'info');
-  });
-
-  // New session button
+  // New session
   document.getElementById('newSessionBtn').addEventListener('click', () => {
     showToast('New session dialog would open here', 'info');
   });
 
-  // Settings button
+  // Settings
   document.getElementById('settingsBtn').addEventListener('click', () => {
     showToast('Settings panel would open here', 'info');
   });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    // Ctrl+Enter to send prompt
     if (e.ctrlKey && e.key === 'Enter' && activeFeature === 'prompts') {
       e.preventDefault();
       document.getElementById('sendPromptBtn').click();
     }
-    // Ctrl+1 / Ctrl+2 to switch feature tabs
     if (e.ctrlKey && e.key === '1') {
       e.preventDefault();
       setActiveFeature('context');
@@ -587,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Tab key support in textareas
+  // Tab key in textareas
   [contextEditorEl, promptEditorEl].forEach(textarea => {
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
@@ -596,25 +543,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const end = textarea.selectionEnd;
         textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
         textarea.selectionStart = textarea.selectionEnd = start + 2;
-        // Trigger input event for preview updates
         textarea.dispatchEvent(new Event('input'));
       }
     });
   });
 
-  // ─── Initialize ─────────────────────────────────────
+  // ─── Initialize ───────────────────────────────────
 
   function init() {
     renderSessions();
     selectSession('session-1');
     renderHistory();
-    updateClock();
-    setInterval(updateClock, 30000);
-
-    // Set initial feature to context
     setActiveFeature('context');
-
-    setStatusMessage('Wingman web demo loaded', 2000);
+    setStatusMessage('Wingman loaded', 2000);
   }
 
   init();
