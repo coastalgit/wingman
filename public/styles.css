@@ -13,6 +13,11 @@ html, body {
 
 #terminal {
   width: 100%;
+  height: calc(100% - 33px); /* account for #session-info bar */
+}
+
+/* Fallback if no session-info bar (standalone terminal) */
+body:not(:has(#session-info)) #terminal {
   height: 100%;
 }
 

@@ -37,15 +37,14 @@ ws.onmessage = (event) => {
     // Persist session ID in localStorage for future reconnects
     localStorage.setItem('wingmanSessionId', msg.sessionId);
 
-    // Display session info (title and optional status div)
-    const shortId = msg.sessionId.substring(0, 8);
-    document.title = `Wingman - Session ${shortId}...`;
+    // Display session info — show description, not raw UUID
+    const desc = msg.description || 'Claude Code session';
+    document.title = `Wingman - ${desc}`;
 
-    // If session-info divs exist in HTML, update them
-    const sessionIdSpan = document.getElementById('session-id');
+    const sessionDescSpan = document.getElementById('session-description');
     const sessionCreatedSpan = document.getElementById('session-created');
-    if (sessionIdSpan) {
-      sessionIdSpan.textContent = msg.sessionId;
+    if (sessionDescSpan) {
+      sessionDescSpan.textContent = desc;
     }
     if (sessionCreatedSpan) {
       const created = new Date(msg.createdAt).toLocaleString();

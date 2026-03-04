@@ -39,14 +39,17 @@ ws.onerror = (err) => {
   console.error('WebSocket error:', err);
 };
 
-// New Session button
+// New Session button — prompt for a name like the Flutter app did
 newSessionBtn.addEventListener('click', async () => {
+  const description = prompt('Session name:', 'Claude Code session');
+  if (!description) return; // user cancelled
+
   newSessionBtn.disabled = true;
   try {
     const res = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: 'Claude Code session' }),
+      body: JSON.stringify({ description: description.trim() }),
     });
     const data = await res.json();
     if (data.sessionId) {
@@ -93,13 +96,13 @@ function renderSessions(sessions) {
 
     const desc = document.createElement('div');
     desc.className = 'session-description';
-    desc.textContent = session.description || 'Session ' + session.id.substring(0, 8);
+    desc.textContent = session.description || 'Unnamed session';
     info.appendChild(desc);
 
     const meta = document.createElement('div');
     meta.className = 'session-meta';
     const created = new Date(session.createdAt).toLocaleString();
-    meta.textContent = session.id.substring(0, 8) + '... | ' + created;
+    meta.textContent = created;
     info.appendChild(meta);
 
     card.appendChild(info);
