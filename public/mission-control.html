@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wingman - Mission Control</title>
+  <link rel="stylesheet" href="mission-control.css" />
+</head>
+<body>
+  <header>
+    <h1>Wingman Mission Control</h1>
+    <div class="controls">
+      <button id="new-session-btn" class="btn primary">New Session</button>
+      <button id="exit-btn" class="btn danger">Exit Wingman</button>
+    </div>
+  </header>
+  <main>
+    <div id="sessions-list"></div>
+  </main>
+  <div id="shutdown-overlay" class="overlay hidden">
+    <div class="overlay-content">Wingman shutting down...</div>
+  </div>
+  <script src="mission-control.js"></script>
+</body>
+</html>
