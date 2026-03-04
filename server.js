@@ -15,6 +15,7 @@ const { WebSocketServer } = require('ws');
 const http = require('http');
 const path = require('path');
 const pty = require('node-pty');
+const SessionManager = require('./lib/session-manager.js');
 
 const PORT = process.env.PORT || 7891;
 
@@ -28,53 +29,115 @@ if (!require('fs').existsSync(BASH_PATH)) {
   process.exit(1);
 }
 
-// Spawn Claude Code inside Git Bash via node-pty
-// Spike result: clean ConPTY output, useConpty:false not needed
-const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
-  name: 'xterm-256color',
-  cols: 120,
-  rows: 30,
-  cwd: process.cwd(),
-  env: {
-    ...process.env,
-    TERM: 'xterm-256color',
-    COLORTERM: 'truecolor',
-  },
-  // useConpty: false,  // uncomment if output appears garbled on your system
-});
-
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Notify all connected browsers when Claude Code exits
-ptyProcess.onExit(({ exitCode, signal }) => {
-  console.log(`Claude Code exited (code=${exitCode}, signal=${signal})`);
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) { // WebSocket.OPEN
-      client.send(JSON.stringify({ type: 'session-ended' }));
-    }
-  });
-});
+// Initialize SessionManager (singleton) on server startup
+const sessionManager = new SessionManager(process.cwd());
 
 wss.on('connection', (ws) => {
-  console.log('Client connected');
+  let sessionId = null;
+  let dataHandler = null;
 
-  // PTY output -> browser terminal
-  const dataHandler = ptyProcess.onData((data) => {
-    if (ws.readyState === ws.OPEN) {
-      ws.send(JSON.stringify({ type: 'output', data }));
-    }
-  });
-
-  // Browser input/resize -> PTY
+  // Browser sends handshake or input message
   ws.on('message', (rawMsg) => {
     try {
       const msg = JSON.parse(rawMsg.toString());
-      if (msg.type === 'input') ptyProcess.write(msg.data);
-      else if (msg.type === 'resize') ptyProcess.resize(msg.cols, msg.rows);
+
+      // Handshake: client indicates session ID (null for new, or UUID for reconnect)
+      if (msg.type === 'handshake') {
+        sessionId = msg.sessionId || null;
+
+        if (sessionId && sessionManager.getSession(sessionId)) {
+          // Reconnect to existing session
+          const session = sessionManager.getSession(sessionId);
+          const history = sessionManager.getHistory(sessionId);
+
+          console.log(`Client reconnected to session ${sessionId}`);
+          ws.send(JSON.stringify({
+            type: 'handshake-ack',
+            sessionId,
+            status: 'resumed',
+            createdAt: session.createdAt,
+            history,
+          }));
+
+          // Attach PTY listener to this WebSocket connection
+          if (session.ptyProcess && !session.closed) {
+            dataHandler = session.ptyProcess.onData((data) => {
+              sessionManager.addToHistory(sessionId, data);
+              if (ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({ type: 'output', data }));
+              }
+            });
+          }
+        } else {
+          // New session: spawn PTY, register with SessionManager
+          const newSessionId = sessionManager.generateSessionId();
+          const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
+            name: 'xterm-256color',
+            cols: 120,
+            rows: 30,
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              TERM: 'xterm-256color',
+              COLORTERM: 'truecolor',
+            },
+            // useConpty: false,  // uncomment if output appears garbled on your system
+          });
+
+          sessionManager.spawnSession(ptyProcess);
+          sessionId = newSessionId;
+
+          console.log(`Client connected, new session ${newSessionId}`);
+          ws.send(JSON.stringify({
+            type: 'handshake-ack',
+            sessionId: newSessionId,
+            status: 'new',
+            createdAt: new Date().toISOString(),
+            history: [],
+          }));
+
+          // Attach PTY listener to this WebSocket connection
+          dataHandler = ptyProcess.onData((data) => {
+            sessionManager.addToHistory(newSessionId, data);
+            if (ws.readyState === ws.OPEN) {
+              ws.send(JSON.stringify({ type: 'output', data }));
+            }
+          });
+
+          // Notify all clients when this PTY exits
+          ptyProcess.onExit(({ exitCode, signal }) => {
+            console.log(`Session ${newSessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
+            sessionManager.closeSession(newSessionId);
+            wss.clients.forEach((client) => {
+              if (client.readyState === ws.OPEN) {
+                client.send(JSON.stringify({ type: 'session-ended', sessionId: newSessionId }));
+              }
+            });
+          });
+        }
+      }
+
+      // Input: route to active session's PTY
+      if (msg.type === 'input') {
+        const session = sessionManager.getSession(sessionId);
+        if (session && session.ptyProcess) {
+          session.ptyProcess.write(msg.data);
+        }
+      }
+
+      // Resize: route to active session's PTY
+      if (msg.type === 'resize') {
+        const session = sessionManager.getSession(sessionId);
+        if (session && session.ptyProcess) {
+          session.ptyProcess.resize(msg.cols, msg.rows);
+        }
+      }
     } catch (e) {
       console.error('Bad message:', e);
     }
@@ -82,7 +145,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
-    dataHandler.dispose();
+    if (dataHandler) dataHandler.dispose();
   });
 
   ws.on('error', (err) => console.error('WebSocket error:', err));
@@ -96,7 +159,15 @@ server.listen(PORT, () => {
 
 process.on('SIGINT', () => {
   console.log('\nShutting down...');
-  ptyProcess.kill();
+
+  // Kill all active PTY processes and mark sessions closed
+  sessionManager.sessions.forEach((session, sessionId) => {
+    if (session.ptyProcess && !session.closed) {
+      session.ptyProcess.kill();
+      sessionManager.closeSession(sessionId);
+    }
+  });
+
   // Close WebSocket connections before shutting down HTTP server
   wss.clients.forEach((ws) => ws.terminate());
   server.close(() => process.exit(0));
