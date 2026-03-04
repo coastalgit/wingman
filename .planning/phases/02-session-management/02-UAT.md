@@ -1,5 +1,5 @@
 ---
-status: testing
+status: diagnosed
 phase: 02-session-management
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md]
 started: 2026-03-04T19:00:00Z
