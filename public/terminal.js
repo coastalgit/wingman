@@ -23,9 +23,41 @@ fitAddon.fit();
 // WebSocket connection to server
 const ws = new WebSocket('ws://' + location.host);
 
+// Retrieve session ID from localStorage (or null if first time)
+const storedSessionId = localStorage.getItem('wingmanSessionId') || null;
+
 // Server output -> terminal (write raw data — xterm.js handles all ANSI)
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
+
+  // Handle handshake-ack first (should be the first message on any connect/reconnect)
+  if (msg.type === 'handshake-ack') {
+    // Persist session ID in localStorage for future reconnects
+    localStorage.setItem('wingmanSessionId', msg.sessionId);
+
+    // Display session info (title and optional status div)
+    const shortId = msg.sessionId.substring(0, 8);
+    document.title = `Wingman - Session ${shortId}...`;
+
+    // If session-info div exists in HTML, update it
+    const statusDiv = document.getElementById('session-info');
+    if (statusDiv) {
+      const created = new Date(msg.createdAt).toLocaleString();
+      statusDiv.textContent = `Session: ${msg.sessionId} | Created: ${created}`;
+    }
+
+    // Replay history if reconnecting (status: "resumed" or if history array is non-empty)
+    if (msg.history && msg.history.length > 0) {
+      term.writeln('[Replaying session history...]');
+      msg.history.forEach(line => term.write(line));
+      term.writeln('[End of history]');
+    }
+
+    console.log(`Connected to session ${msg.sessionId} (status: ${msg.status})`);
+    return;  // Don't process other message types in handshake-ack
+  }
+
+  // Handle output (existing behavior, unchanged)
   if (msg.type === 'output') {
     term.write(msg.data);
   } else if (msg.type === 'session-ended') {
@@ -53,9 +85,14 @@ const observer = new ResizeObserver(() => {
 });
 observer.observe(document.getElementById('terminal'));
 
-// Send initial resize after WebSocket opens
+// Send handshake after WebSocket opens
 ws.onopen = () => {
   fitAddon.fit();
+
+  // Send handshake with session ID (null for new sessions, UUID for reconnects)
+  ws.send(JSON.stringify({ type: 'handshake', sessionId: storedSessionId }));
+
+  // Send resize after handshake
   ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
 };
 
