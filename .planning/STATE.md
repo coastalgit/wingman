@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-terminal-pipe-poc plan 01 (project scaffold)
-last_updated: "2026-03-04T16:29:02.303Z"
+stopped_at: Completed 01-terminal-pipe-poc plan 02 (PTY spawn + WebSocket bridge)
+last_updated: "2026-03-04T16:37:12.993Z"
 last_activity: 2026-03-04 -- Roadmap created
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 33
 ---
 
@@ -51,6 +51,7 @@ Progress: [███░░░░░░░] 33%
 
 *Updated after each plan completion*
 | Phase 01-terminal-pipe-poc P01 | 3 | 3 tasks | 6 files |
+| Phase 01-terminal-pipe-poc P02 | 10 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 - [Phase 01-terminal-pipe-poc]: node-pty native build succeeded on Node 20/Windows without prebuilt fallback
 - [Phase 01-terminal-pipe-poc]: open v10 is ESM-only: use dynamic import() inside server.listen callback for CJS compatibility
 - [Phase 01-terminal-pipe-poc]: xterm.js CDN globals use FitAddon.FitAddon/WebLinksAddon.WebLinksAddon namespace pattern
+- [Phase 01-terminal-pipe-poc]: ConPTY spike: clean output, useConpty:false not needed on this system
+- [Phase 01-terminal-pipe-poc]: Native claude.exe v2.1.68 works with node-pty + ConPTY; no freeze bug on this version
+- [Phase 01-terminal-pipe-poc]: dataHandler.dispose() on ws.close() required to prevent PTY listener accumulation
 
 ### Pending Todos
 
@@ -78,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:29:02.295Z
-Stopped at: Completed 01-terminal-pipe-poc plan 01 (project scaffold)
+Last session: 2026-03-04T16:37:12.988Z
+Stopped at: Completed 01-terminal-pipe-poc plan 02 (PTY spawn + WebSocket bridge)
 Resume file: None

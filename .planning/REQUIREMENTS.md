@@ -9,9 +9,9 @@
 
 - [x] **POC-01**: `npx wingman` starts a Node.js HTTP/WebSocket server and opens a browser window automatically
 - [x] **POC-02**: Browser window renders a terminal using xterm.js connected to the server via WebSocket
-- [ ] **POC-03**: Server spawns Claude Code as a PTY child process (via node-pty) on startup
-- [ ] **POC-04**: Claude Code stdout/stderr streams to browser terminal in real time
-- [ ] **POC-05**: User input typed in browser terminal is sent to Claude Code process stdin
+- [x] **POC-03**: Server spawns Claude Code as a PTY child process (via node-pty) on startup
+- [x] **POC-04**: Claude Code stdout/stderr streams to browser terminal in real time
+- [x] **POC-05**: User input typed in browser terminal is sent to Claude Code process stdin
 - [ ] **POC-06**: Slash commands (e.g. `/help`, `/plugins`) work correctly in browser terminal
 - [ ] **POC-07**: Interactive prompts (plugin menus, y/n confirmations) work correctly in browser terminal
 - [x] **POC-08**: ANSI colours, spinners, and formatting render correctly in browser terminal
@@ -85,9 +85,9 @@
 |-------------|-------|--------|
 | POC-01 | Phase 1 | Complete |
 | POC-02 | Phase 1 | Complete |
-| POC-03 | Phase 1 | Pending |
-| POC-04 | Phase 1 | Pending |
-| POC-05 | Phase 1 | Pending |
+| POC-03 | Phase 1 | Complete |
+| POC-04 | Phase 1 | Complete |
+| POC-05 | Phase 1 | Complete |
 | POC-06 | Phase 1 | Pending |
 | POC-07 | Phase 1 | Pending |
 | POC-08 | Phase 1 | Complete |
