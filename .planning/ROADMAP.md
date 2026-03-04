@@ -48,7 +48,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — SessionManager class: UUID generation, session tracking, terminal history buffer, file persistence
+- [x] 02-01-PLAN.md — SessionManager class: UUID generation, session tracking, terminal history buffer, file persistence
 - [ ] 02-02-PLAN.md — Browser reconnection: handshake protocol, localStorage persistence, history replay, metadata display
 
 ### Phase 3: Mission Control
@@ -88,6 +88,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Terminal Pipe PoC | 3/3 | ✅ Complete | 2026-03-04 |
-| 2. Session Management | 0/2 | Not started | - |
+| 2. Session Management | 1/2 | In Progress | 2026-03-04 (P01) |
 | 3. Mission Control | 0/3 | Not started | - |
 | 4. Distribution | 0/1 | Not started | - |
