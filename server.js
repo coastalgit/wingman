@@ -97,5 +97,9 @@ server.listen(PORT, () => {
 process.on('SIGINT', () => {
   console.log('\nShutting down...');
   ptyProcess.kill();
+  // Close WebSocket connections before shutting down HTTP server
+  wss.clients.forEach((ws) => ws.terminate());
   server.close(() => process.exit(0));
+  // Force exit if server.close() stalls (e.g. open connections)
+  setTimeout(() => process.exit(0), 500).unref();
 });
