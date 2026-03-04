@@ -30,6 +30,88 @@ if (!require('fs').existsSync(BASH_PATH)) {
 }
 
 const app = express();
+
+// JSON body parsing for POST endpoints
+app.use(express.json());
+
+// --- Custom routes (BEFORE express.static to avoid index.html interception) ---
+
+// Mission Control dashboard at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'mission-control.html'));
+});
+
+// Session terminal page
+app.get('/session/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'session.html'));
+});
+
+// REST API: List all sessions with status
+app.get('/api/sessions', (req, res) => {
+  res.json(sessionManager.getAllSessionsWithStatus());
+});
+
+// REST API: Create a new session (spawns PTY)
+app.post('/api/sessions', (req, res) => {
+  const description = (req.body && req.body.description) || 'Claude Code session';
+
+  const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
+    name: 'xterm-256color',
+    cols: 120,
+    rows: 30,
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+    },
+  });
+
+  const sessionId = sessionManager.spawnSession(ptyProcess, { description });
+
+  // Register PTY exit handler
+  ptyProcess.onExit(({ exitCode, signal }) => {
+    console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
+    sessionManager.closeSession(sessionId);
+    broadcastSessionUpdate();
+
+    // Notify terminal clients about session end
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1 /* WebSocket.OPEN */) {
+        client.send(JSON.stringify({ type: 'session-ended', sessionId }));
+      }
+    });
+  });
+
+  broadcastSessionUpdate();
+
+  res.json({ sessionId, url: '/session/' + sessionId });
+});
+
+// REST API: Close/delete a session
+app.delete('/api/sessions/:id', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  // Kill PTY if still active
+  if (session.ptyProcess && !session.closed) {
+    session.ptyProcess.kill();
+  }
+  sessionManager.closeSession(req.params.id);
+  broadcastSessionUpdate();
+
+  res.json({ status: 'closed', sessionId: req.params.id });
+});
+
+// REST API: Shutdown Wingman
+app.post('/api/shutdown', (req, res) => {
+  res.json({ status: 'shutting-down' });
+  gracefulShutdown();
+});
+
+// Static files AFTER custom routes (avoids index.html interception)
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
@@ -38,16 +120,63 @@ const wss = new WebSocketServer({ server });
 // Initialize SessionManager (singleton) on server startup
 const sessionManager = new SessionManager(process.cwd());
 
+// Broadcast session list update to all Mission Control clients
+function broadcastSessionUpdate() {
+  const sessions = sessionManager.getAllSessionsWithStatus();
+  const msg = JSON.stringify({ type: 'session-update', sessions });
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1 && client.clientType === 'mc') {
+      client.send(msg);
+    }
+  });
+}
+
+// Graceful shutdown: broadcast, kill PTYs, close server
+function gracefulShutdown() {
+  console.log('\nShutting down...');
+
+  // Broadcast shutdown to all WebSocket clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(JSON.stringify({ type: 'shutdown' }));
+    }
+  });
+
+  // Kill all active PTY processes and mark sessions closed
+  sessionManager.sessions.forEach((session, sessionId) => {
+    if (session.ptyProcess && !session.closed) {
+      session.ptyProcess.kill();
+      sessionManager.closeSession(sessionId);
+    }
+  });
+
+  // Close WebSocket connections before shutting down HTTP server
+  wss.clients.forEach((ws) => ws.terminate());
+  server.close(() => process.exit(0));
+  // Force exit if server.close() stalls (e.g. open connections)
+  setTimeout(() => process.exit(0), 500).unref();
+}
+
 wss.on('connection', (ws) => {
   let sessionId = null;
   let dataHandler = null;
 
-  // Browser sends handshake or input message
+  // Browser sends handshake, mc-connect, or input message
   ws.on('message', (rawMsg) => {
     try {
       const msg = JSON.parse(rawMsg.toString());
 
-      // Handshake: client indicates session ID (null for new, or UUID for reconnect)
+      // Mission Control client identification
+      if (msg.type === 'mc-connect') {
+        ws.clientType = 'mc';
+        ws.send(JSON.stringify({
+          type: 'session-update',
+          sessions: sessionManager.getAllSessionsWithStatus(),
+        }));
+        return;
+      }
+
+      // Handshake: client indicates session ID for reconnect
       if (msg.type === 'handshake') {
         sessionId = msg.sessionId || null;
 
@@ -75,50 +204,11 @@ wss.on('connection', (ws) => {
             });
           }
         } else {
-          // New session: spawn PTY, register with SessionManager
-          const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
-            name: 'xterm-256color',
-            cols: 120,
-            rows: 30,
-            cwd: process.cwd(),
-            env: {
-              ...process.env,
-              TERM: 'xterm-256color',
-              COLORTERM: 'truecolor',
-            },
-            // useConpty: false,  // uncomment if output appears garbled on your system
-          });
-
-          const newSessionId = sessionManager.spawnSession(ptyProcess);
-          sessionId = newSessionId;
-
-          console.log(`Client connected, new session ${newSessionId}`);
+          // No null-spawn: sessions are ONLY created via POST /api/sessions
           ws.send(JSON.stringify({
-            type: 'handshake-ack',
-            sessionId: newSessionId,
-            status: 'new',
-            createdAt: new Date().toISOString(),
-            history: [],
+            type: 'error',
+            message: 'Unknown session. Launch from Mission Control.',
           }));
-
-          // Attach PTY listener to this WebSocket connection
-          dataHandler = ptyProcess.onData((data) => {
-            sessionManager.addToHistory(newSessionId, data);
-            if (ws.readyState === ws.OPEN) {
-              ws.send(JSON.stringify({ type: 'output', data }));
-            }
-          });
-
-          // Notify all clients when this PTY exits
-          ptyProcess.onExit(({ exitCode, signal }) => {
-            console.log(`Session ${newSessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
-            sessionManager.closeSession(newSessionId);
-            wss.clients.forEach((client) => {
-              if (client.readyState === ws.OPEN) {
-                client.send(JSON.stringify({ type: 'session-ended', sessionId: newSessionId }));
-              }
-            });
-          });
         }
       }
 
@@ -157,19 +247,5 @@ server.listen(PORT, () => {
 });
 
 process.on('SIGINT', () => {
-  console.log('\nShutting down...');
-
-  // Kill all active PTY processes and mark sessions closed
-  sessionManager.sessions.forEach((session, sessionId) => {
-    if (session.ptyProcess && !session.closed) {
-      session.ptyProcess.kill();
-      sessionManager.closeSession(sessionId);
-    }
-  });
-
-  // Close WebSocket connections before shutting down HTTP server
-  wss.clients.forEach((ws) => ws.terminate());
-  server.close(() => process.exit(0));
-  // Force exit if server.close() stalls (e.g. open connections)
-  setTimeout(() => process.exit(0), 500).unref();
+  gracefulShutdown();
 });

@@ -23,8 +23,10 @@ fitAddon.fit();
 // WebSocket connection to server
 const ws = new WebSocket('ws://' + location.host);
 
-// Retrieve session ID from localStorage (or null if first time)
-const storedSessionId = localStorage.getItem('wingmanSessionId') || null;
+// Retrieve session ID from URL path first, then fall back to localStorage
+const pathMatch = window.location.pathname.match(/\/session\/(.+)/);
+const urlSessionId = pathMatch ? pathMatch[1] : null;
+const storedSessionId = urlSessionId || localStorage.getItem('wingmanSessionId') || null;
 
 // Server output -> terminal (write raw data — xterm.js handles all ANSI)
 ws.onmessage = (event) => {
@@ -66,6 +68,10 @@ ws.onmessage = (event) => {
     term.write(msg.data);
   } else if (msg.type === 'session-ended') {
     term.writeln('\r\n\x1b[33m[Session ended]\x1b[0m');
+  } else if (msg.type === 'shutdown') {
+    term.writeln('\r\n\x1b[31m[Wingman shutting down...]\x1b[0m');
+  } else if (msg.type === 'error') {
+    term.writeln('\r\n\x1b[31m[Error: ' + msg.message + ']\x1b[0m');
   }
 };
 
