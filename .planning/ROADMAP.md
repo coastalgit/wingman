@@ -61,12 +61,12 @@ Plans:
   3. Only one Wingman instance runs per project (duplicate launch prints existing URL); stale PID locks are auto-cleaned
   4. "Exit Wingman" button and Ctrl+C both gracefully shut down all sessions, clean up child processes, and remove the lock file
   5. `npx wingman --manual` starts without spawning Claude processes; session files (`cprompt.md`, `ccontext.md`) are written to `.ai/wingman/` for use via `/ccc` and `/ccp` slash commands
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
-- [ ] 03-03: TBD
+- [ ] 03-01-PLAN.md — Mission Control two-page architecture (dashboard + session routing + REST API + WebSocket broadcast)
+- [ ] 03-02-PLAN.md — Process lifecycle (PID lock, stale cleanup, graceful shutdown, zombie prevention)
+- [ ] 03-03-PLAN.md — Manual mode (--manual flag, cprompt.md/ccontext.md file writing, UI adaptation)
 
 ### Phase 4: Distribution
 **Goal**: Any developer can run `npx wingman` in a project directory and it just works, with no manual build tool setup
@@ -88,6 +88,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Terminal Pipe PoC | 3/3 | ✅ Complete | 2026-03-04 |
-| 2. Session Management | 1/2 | In Progress | 2026-03-04 (P01) |
+| 2. Session Management | 2/2 | ✅ Complete | 2026-03-04 |
 | 3. Mission Control | 0/3 | Not started | - |
 | 4. Distribution | 0/1 | Not started | - |
