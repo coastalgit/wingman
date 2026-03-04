@@ -24,17 +24,17 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Depends on**: Nothing (first phase)
 **Requirements**: POC-01, POC-02, POC-03, POC-04, POC-05, POC-06, POC-07, POC-08, POC-09
 **Success Criteria** (what must be TRUE):
-  1. Running `npx wingman` (or `node server.js` for PoC) starts a server and opens a browser window with a terminal UI
+  1. Running `node server.js` starts a server and opens a browser window with a terminal UI
   2. Claude Code output streams into the browser terminal in real time with correct ANSI rendering (colours, spinners, formatting)
   3. User can type text and slash commands in the browser terminal and Claude Code receives and responds to them
   4. Interactive prompts (y/n confirmations, plugin menus) work correctly through the browser terminal
   5. Terminal history is scrollable in the browser window
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md — Scaffold: package.json, server.js (HTTP+WS), public/ with xterm.js terminal UI
+- [ ] 01-02-PLAN.md — PTY wiring: ConPTY spike + Claude Code spawn via Git Bash + WebSocket bridge
+- [ ] 01-03-PLAN.md — Human verification: interactive test of all 9 POC requirements
 
 ### Phase 2: Session Management
 **Goal**: A developer can run multiple Claude Code sessions, close browser tabs, reopen them, and reconnect to running sessions without losing history
