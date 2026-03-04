@@ -87,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Terminal Pipe PoC | 0/3 | Not started | - |
+| 1. Terminal Pipe PoC | 1/3 | In Progress|  |
 | 2. Session Management | 0/2 | Not started | - |
 | 3. Mission Control | 0/3 | Not started | - |
 | 4. Distribution | 0/1 | Not started | - |
