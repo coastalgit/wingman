@@ -76,7 +76,6 @@ wss.on('connection', (ws) => {
           }
         } else {
           // New session: spawn PTY, register with SessionManager
-          const newSessionId = sessionManager.generateSessionId();
           const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
             name: 'xterm-256color',
             cols: 120,
@@ -90,7 +89,7 @@ wss.on('connection', (ws) => {
             // useConpty: false,  // uncomment if output appears garbled on your system
           });
 
-          sessionManager.spawnSession(ptyProcess);
+          const newSessionId = sessionManager.spawnSession(ptyProcess);
           sessionId = newSessionId;
 
           console.log(`Client connected, new session ${newSessionId}`);
