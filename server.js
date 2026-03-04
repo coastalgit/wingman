@@ -190,6 +190,7 @@ wss.on('connection', (ws) => {
             type: 'handshake-ack',
             sessionId,
             status: 'resumed',
+            description: session.description || 'Claude Code session',
             createdAt: session.createdAt,
             history,
           }));
