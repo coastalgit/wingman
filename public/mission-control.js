@@ -18,6 +18,9 @@ ws.onmessage = (event) => {
 
   if (msg.type === 'session-update') {
     renderSessions(msg.sessions);
+    const active = (msg.sessions || []).filter(s => s.status === 'active').length;
+    const el = document.getElementById('statusSessions');
+    if (el) el.textContent = active + ' active session' + (active !== 1 ? 's' : '');
   }
 
   if (msg.type === 'shutdown') {
