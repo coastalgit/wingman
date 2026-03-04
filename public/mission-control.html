@@ -4,22 +4,59 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wingman - Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="mission-control.css" />
 </head>
 <body>
-  <header>
-    <h1>Wingman Mission Control</h1>
-    <div class="controls">
-      <button id="new-session-btn" class="btn primary">New Session</button>
-      <button id="exit-btn" class="btn danger">Exit Wingman</button>
+
+  <!-- ─── Header ──────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-mark">W</div>
+      <span class="brand-name">Wingman</span>
+    </div>
+
+    <span class="header-subtitle">Mission Control</span>
+
+    <div class="header-right">
+      <button id="new-session-btn" class="save-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        New Session
+      </button>
+      <button id="exit-btn" class="exit-btn">Exit Wingman</button>
     </div>
   </header>
-  <main>
-    <div id="sessions-list"></div>
+
+  <!-- ─── Main ──────────────────────────────────────────── -->
+  <main class="mc-main">
+    <div id="sessions-list" class="sessions-list"></div>
   </main>
+
+  <!-- ─── Status Bar ──────────────────────────────────────── -->
+  <footer class="status-bar">
+    <div class="status-left">
+      <span class="status-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        <span id="statusProject">Mission Control</span>
+      </span>
+    </div>
+    <div class="status-right">
+      <span class="status-item">
+        <span class="status-dot"></span>
+        <span id="statusSessions">0 sessions</span>
+      </span>
+    </div>
+  </footer>
+
+  <!-- ─── Shutdown Overlay ──────────────────────────────── -->
   <div id="shutdown-overlay" class="overlay hidden">
     <div class="overlay-content">Wingman shutting down...</div>
   </div>
+
   <script src="mission-control.js"></script>
 </body>
 </html>
