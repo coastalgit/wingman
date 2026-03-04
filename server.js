@@ -41,8 +41,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'mission-control.html'));
 });
 
-// Session terminal page
-app.get('/session/:id', (req, res) => {
+// Session terminal page (UUID pattern only — prevents catching static file requests)
+app.get('/session/:id([0-9a-f-]{36})', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'session.html'));
 });
 
