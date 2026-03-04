@@ -12,7 +12,7 @@ Wingman v2 replaces the Flutter desktop app with a Node.js web UI for Claude Cod
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Terminal Pipe PoC** - Prove browser-to-Claude PTY pipe works end-to-end on Windows/WSL
+- [x] **Phase 1: Terminal Pipe PoC** - Prove browser-to-Claude PTY pipe works end-to-end on Windows/WSL
 - [ ] **Phase 2: Session Management** - Multiple sessions with reconnection, history replay, and graceful lifecycle
 - [ ] **Phase 3: Mission Control** - Project-scoped launcher, process lifecycle enforcement, and manual mode fallback
 - [ ] **Phase 4: Distribution** - npx-installable package with native addon support
@@ -32,9 +32,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Scaffold: package.json, server.js (HTTP+WS), public/ with xterm.js terminal UI
-- [ ] 01-02-PLAN.md — PTY wiring: ConPTY spike + Claude Code spawn via Git Bash + WebSocket bridge
-- [ ] 01-03-PLAN.md — Human verification: interactive test of all 9 POC requirements
+- [x] 01-01-PLAN.md — Scaffold: package.json, server.js (HTTP+WS), public/ with xterm.js terminal UI
+- [x] 01-02-PLAN.md — PTY wiring: ConPTY spike + Claude Code spawn via Git Bash + WebSocket bridge
+- [x] 01-03-PLAN.md — Human verification: interactive test of all 9 POC requirements
 
 ### Phase 2: Session Management
 **Goal**: A developer can run multiple Claude Code sessions, close browser tabs, reopen them, and reconnect to running sessions without losing history
@@ -45,11 +45,11 @@ Plans:
   2. Closing a browser tab and reopening the session URL reconnects to the same Claude process with full terminal history replayed
   3. A session can be gracefully closed, which terminates its Claude child process and marks it as closed
   4. Session metadata (session ID, project name, port) is visible in the browser window
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — SessionManager class: UUID generation, session tracking, terminal history buffer, file persistence
+- [ ] 02-02-PLAN.md — Browser reconnection: handshake protocol, localStorage persistence, history replay, metadata display
 
 ### Phase 3: Mission Control
 **Goal**: A developer manages all Claude Code sessions from a central launcher, with robust process lifecycle guarantees and a manual-mode fallback
@@ -87,7 +87,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Terminal Pipe PoC | 2/3 | In Progress|  |
+| 1. Terminal Pipe PoC | 3/3 | ✅ Complete | 2026-03-04 |
 | 2. Session Management | 0/2 | Not started | - |
 | 3. Mission Control | 0/3 | Not started | - |
 | 4. Distribution | 0/1 | Not started | - |
