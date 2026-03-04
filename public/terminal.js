@@ -39,11 +39,15 @@ ws.onmessage = (event) => {
     const shortId = msg.sessionId.substring(0, 8);
     document.title = `Wingman - Session ${shortId}...`;
 
-    // If session-info div exists in HTML, update it
-    const statusDiv = document.getElementById('session-info');
-    if (statusDiv) {
+    // If session-info divs exist in HTML, update them
+    const sessionIdSpan = document.getElementById('session-id');
+    const sessionCreatedSpan = document.getElementById('session-created');
+    if (sessionIdSpan) {
+      sessionIdSpan.textContent = msg.sessionId;
+    }
+    if (sessionCreatedSpan) {
       const created = new Date(msg.createdAt).toLocaleString();
-      statusDiv.textContent = `Session: ${msg.sessionId} | Created: ${created}`;
+      sessionCreatedSpan.textContent = created;
     }
 
     // Replay history if reconnecting (status: "resumed" or if history array is non-empty)
