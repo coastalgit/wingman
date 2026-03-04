@@ -83,18 +83,43 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| POC-01 to POC-09 | Phase 1 | Pending |
-| SESS-01 to SESS-05 | Phase 2 | Pending |
-| MC-01 to MC-05 | Phase 3 | Pending |
-| PROC-01 to PROC-06 | Phase 3 | Pending |
-| MAN-01 to MAN-04 | Phase 3 | Pending |
-| DIST-01 to DIST-02 | Phase 4 | Pending |
+| POC-01 | Phase 1 | Pending |
+| POC-02 | Phase 1 | Pending |
+| POC-03 | Phase 1 | Pending |
+| POC-04 | Phase 1 | Pending |
+| POC-05 | Phase 1 | Pending |
+| POC-06 | Phase 1 | Pending |
+| POC-07 | Phase 1 | Pending |
+| POC-08 | Phase 1 | Pending |
+| POC-09 | Phase 1 | Pending |
+| SESS-01 | Phase 2 | Pending |
+| SESS-02 | Phase 2 | Pending |
+| SESS-03 | Phase 2 | Pending |
+| SESS-04 | Phase 2 | Pending |
+| SESS-05 | Phase 2 | Pending |
+| MC-01 | Phase 3 | Pending |
+| MC-02 | Phase 3 | Pending |
+| MC-03 | Phase 3 | Pending |
+| MC-04 | Phase 3 | Pending |
+| MC-05 | Phase 3 | Pending |
+| PROC-01 | Phase 3 | Pending |
+| PROC-02 | Phase 3 | Pending |
+| PROC-03 | Phase 3 | Pending |
+| PROC-04 | Phase 3 | Pending |
+| PROC-05 | Phase 3 | Pending |
+| PROC-06 | Phase 3 | Pending |
+| MAN-01 | Phase 3 | Pending |
+| MAN-02 | Phase 3 | Pending |
+| MAN-03 | Phase 3 | Pending |
+| MAN-04 | Phase 3 | Pending |
+| DIST-01 | Phase 4 | Pending |
+| DIST-02 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 28
-- Unmapped: 0 ✓
+- v1 requirements: 31 total
+- Mapped to phases: 31
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap creation*
