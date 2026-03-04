@@ -69,6 +69,18 @@ app.post('/api/sessions', (req, res) => {
 
   const sessionId = sessionManager.spawnSession(ptyProcess, { description });
 
+  // Buffer PTY output into session history IMMEDIATELY so nothing is lost
+  // before a browser client connects. This listener runs for the session lifetime.
+  ptyProcess.onData((data) => {
+    sessionManager.addToHistory(sessionId, data);
+    // Forward to any connected terminal WebSocket clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1 && client.sessionId === sessionId) {
+        client.send(JSON.stringify({ type: 'output', data }));
+      }
+    });
+  });
+
   // Register PTY exit handler
   ptyProcess.onExit(({ exitCode, signal }) => {
     console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
@@ -159,7 +171,6 @@ function gracefulShutdown() {
 
 wss.on('connection', (ws) => {
   let sessionId = null;
-  let dataHandler = null;
 
   // Browser sends handshake, mc-connect, or input message
   ws.on('message', (rawMsg) => {
@@ -181,29 +192,21 @@ wss.on('connection', (ws) => {
         sessionId = msg.sessionId || null;
 
         if (sessionId && sessionManager.getSession(sessionId)) {
-          // Reconnect to existing session
           const session = sessionManager.getSession(sessionId);
           const history = sessionManager.getHistory(sessionId);
 
-          console.log(`Client reconnected to session ${sessionId}`);
+          // Tag this WebSocket so the spawn-time onData broadcaster can find it
+          ws.sessionId = sessionId;
+
+          console.log(`Client connected to session ${sessionId}`);
           ws.send(JSON.stringify({
             type: 'handshake-ack',
             sessionId,
-            status: 'resumed',
+            status: history.length > 0 ? 'resumed' : 'new',
             description: session.description || 'Claude Code session',
             createdAt: session.createdAt,
             history,
           }));
-
-          // Attach PTY listener to this WebSocket connection
-          if (session.ptyProcess && !session.closed) {
-            dataHandler = session.ptyProcess.onData((data) => {
-              sessionManager.addToHistory(sessionId, data);
-              if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({ type: 'output', data }));
-              }
-            });
-          }
         } else {
           // No null-spawn: sessions are ONLY created via POST /api/sessions
           ws.send(JSON.stringify({
@@ -235,7 +238,6 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
-    if (dataHandler) dataHandler.dispose();
   });
 
   ws.on('error', (err) => console.error('WebSocket error:', err));
