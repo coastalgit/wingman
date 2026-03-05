@@ -68,46 +68,9 @@ app.post('/api/sessions', (req, res) => {
 
   const description = (req.body && req.body.description) || 'Claude Code session';
 
-  const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
-    name: 'xterm-256color',
-    cols: 120,
-    rows: 30,
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      TERM: 'xterm-256color',
-      COLORTERM: 'truecolor',
-    },
-  });
-
-  const sessionId = sessionManager.spawnSession(ptyProcess, { description });
-
-  // Buffer PTY output into session history IMMEDIATELY so nothing is lost
-  // before a browser client connects. This listener runs for the session lifetime.
-  ptyProcess.onData((data) => {
-    sessionManager.addToHistory(sessionId, data);
-    // Forward to any connected terminal WebSocket clients
-    wss.clients.forEach((client) => {
-      if (client.readyState === 1 && client.sessionId === sessionId) {
-        client.send(JSON.stringify({ type: 'output', data }));
-      }
-    });
-  });
-
-  // Register PTY exit handler
-  ptyProcess.onExit(({ exitCode, signal }) => {
-    console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
-    sessionManager.closeSession(sessionId);
-    broadcastSessionUpdate();
-
-    // Notify terminal clients about session end
-    wss.clients.forEach((client) => {
-      if (client.readyState === 1 /* WebSocket.OPEN */) {
-        client.send(JSON.stringify({ type: 'session-ended', sessionId }));
-      }
-    });
-  });
-
+  // Register session metadata first (with no PTY yet), then spawn
+  const sessionId = sessionManager.spawnSession(null, { description });
+  spawnAndWirePty(sessionId);
   broadcastSessionUpdate();
 
   res.json({ sessionId, url: '/session/' + sessionId });
@@ -167,7 +130,54 @@ function broadcastSessionUpdate() {
   });
 }
 
-// Graceful shutdown: broadcast, kill PTYs, release lock, close server
+// Spawn a PTY and wire up onData/onExit for a session that already exists in SessionManager.
+// Used both for new sessions (POST /api/sessions) and reconnecting to reconnectable sessions.
+function spawnAndWirePty(sessionId) {
+  const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
+    name: 'xterm-256color',
+    cols: 120,
+    rows: 30,
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+    },
+  });
+
+  // Wire the new PTY into the existing session object
+  const session = sessionManager.getSession(sessionId);
+  session.ptyProcess = ptyProcess;
+  session.closed = false;
+  session.primaryWs = null; // reset primary on new PTY
+  sessionManager.updateSessionsFile();
+
+  // Buffer PTY output into history and broadcast to all connected terminal clients
+  ptyProcess.onData((data) => {
+    sessionManager.addToHistory(sessionId, data);
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1 && client.sessionId === sessionId) {
+        client.send(JSON.stringify({ type: 'output', data }));
+      }
+    });
+  });
+
+  // PTY exited naturally (e.g. user typed 'exit') — detach but keep session reconnectable
+  ptyProcess.onExit(({ exitCode, signal }) => {
+    console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
+    sessionManager.detachPty(sessionId);
+    broadcastSessionUpdate();
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1 && client.sessionId === sessionId) {
+        client.send(JSON.stringify({ type: 'session-ended', sessionId }));
+      }
+    });
+  });
+
+  return ptyProcess;
+}
+
+// Graceful shutdown: broadcast, kill PTYs (leave sessions reconnectable), release lock, close server
 let shuttingDown = false;
 function gracefulShutdown() {
   if (shuttingDown) return;
@@ -181,11 +191,11 @@ function gracefulShutdown() {
     }
   });
 
-  // Kill all active PTY processes and mark sessions closed
+  // Kill active PTY processes — use detachPty so sessions remain reconnectable on next start
   sessionManager.sessions.forEach((session, sessionId) => {
-    if (session.ptyProcess && !session.closed) {
+    if (session.ptyProcess) {
       session.ptyProcess.kill();
-      sessionManager.closeSession(sessionId);
+      sessionManager.detachPty(sessionId);
     }
   });
 
@@ -202,7 +212,6 @@ function gracefulShutdown() {
 wss.on('connection', (ws) => {
   let sessionId = null;
 
-  // Browser sends handshake, mc-connect, or input message
   ws.on('message', (rawMsg) => {
     try {
       const msg = JSON.parse(rawMsg.toString());
@@ -217,18 +226,31 @@ wss.on('connection', (ws) => {
         return;
       }
 
-      // Handshake: client indicates session ID for reconnect
+      // Handshake: client connects to an existing session
       if (msg.type === 'handshake') {
         sessionId = msg.sessionId || null;
 
         if (sessionId && sessionManager.getSession(sessionId)) {
           const session = sessionManager.getSession(sessionId);
-          const history = sessionManager.getHistory(sessionId);
 
-          // Tag this WebSocket so the spawn-time onData broadcaster can find it
+          // If reconnectable (PTY dead, not explicitly closed), spawn a fresh Claude process
+          if (!session.ptyProcess && !session.closed) {
+            console.log(`Session ${sessionId}: reconnecting — spawning new PTY`);
+            spawnAndWirePty(sessionId);
+            broadcastSessionUpdate();
+          }
+
+          // Tag this WebSocket for PTY output broadcasting
           ws.sessionId = sessionId;
 
-          console.log(`Client connected to session ${sessionId}`);
+          // First client to connect to this session controls PTY resize
+          if (!session.primaryWs) {
+            session.primaryWs = ws;
+            ws.isPrimary = true;
+          }
+
+          const history = sessionManager.getHistory(sessionId);
+          console.log(`Client connected to session ${sessionId} (primary: ${ws.isPrimary || false})`);
           ws.send(JSON.stringify({
             type: 'handshake-ack',
             sessionId,
@@ -238,7 +260,6 @@ wss.on('connection', (ws) => {
             history,
           }));
         } else {
-          // No null-spawn: sessions are ONLY created via POST /api/sessions
           ws.send(JSON.stringify({
             type: 'error',
             message: 'Unknown session. Launch from Mission Control.',
@@ -254,8 +275,9 @@ wss.on('connection', (ws) => {
         }
       }
 
-      // Resize: route to active session's PTY
-      if (msg.type === 'resize') {
+      // Resize: only the primary client controls PTY dimensions
+      // This prevents multiple tabs from fighting over the terminal size
+      if (msg.type === 'resize' && ws.isPrimary) {
         const session = sessionManager.getSession(sessionId);
         if (session && session.ptyProcess) {
           session.ptyProcess.resize(msg.cols, msg.rows);
@@ -267,6 +289,13 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    // If primary client disconnected, clear so next connection can take over
+    if (ws.isPrimary && sessionId) {
+      const session = sessionManager.getSession(sessionId);
+      if (session && session.primaryWs === ws) {
+        session.primaryWs = null;
+      }
+    }
     console.log('Client disconnected');
   });
 
