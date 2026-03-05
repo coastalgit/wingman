@@ -76,21 +76,18 @@ app.post('/api/sessions', (req, res) => {
   res.json({ sessionId, url: '/session/' + sessionId });
 });
 
-// REST API: Close/delete a session
+// REST API: Stop a session — kills the PTY but keeps the session restartable
 app.delete('/api/sessions/:id', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) {
     return res.status(404).json({ error: 'Session not found' });
   }
-
-  // Kill PTY if still active
-  if (session.ptyProcess && !session.closed) {
+  if (session.ptyProcess) {
     session.ptyProcess.kill();
   }
-  sessionManager.closeSession(req.params.id);
+  sessionManager.detachPty(req.params.id);
   broadcastSessionUpdate();
-
-  res.json({ status: 'closed', sessionId: req.params.id });
+  res.json({ status: 'stopped', sessionId: req.params.id });
 });
 
 // REST API: Shutdown Wingman
