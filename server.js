@@ -249,12 +249,19 @@ wss.on('connection', (ws) => {
             ws.isPrimary = true;
           }
 
-          const history = sessionManager.getHistory(sessionId);
-          console.log(`Client connected to session ${sessionId} (primary: ${ws.isPrimary || false})`);
+          // Active sessions: don't replay history — raw PTY output (TUI escape sequences,
+          // cursor moves, screen clears) renders as garbage in a fresh terminal context.
+          // Secondary viewers just join the live stream from this point forward.
+          // Reconnectable sessions (PTY dead): replay history so user has context.
+          const isActive = !!(session.ptyProcess && !session.closed);
+          const history = isActive ? [] : sessionManager.getHistory(sessionId);
+          const status = isActive && !ws.isPrimary ? 'joined' : (history.length > 0 ? 'resumed' : 'new');
+
+          console.log(`Client connected to session ${sessionId} (status: ${status}, primary: ${ws.isPrimary || false})`);
           ws.send(JSON.stringify({
             type: 'handshake-ack',
             sessionId,
-            status: history.length > 0 ? 'resumed' : 'new',
+            status,
             description: session.description || 'Claude Code session',
             createdAt: session.createdAt,
             history,

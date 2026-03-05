@@ -18,7 +18,8 @@ term.loadAddon(fitAddon);
 term.loadAddon(new WebLinksAddon.WebLinksAddon());
 
 term.open(document.getElementById('terminal'));
-fitAddon.fit();
+// Fit after open — defer one frame so the browser has computed the container dimensions
+requestAnimationFrame(() => fitAddon.fit());
 
 // WebSocket connection to server
 const ws = new WebSocket('ws://' + location.host);
@@ -51,11 +52,14 @@ ws.onmessage = (event) => {
       sessionCreatedSpan.textContent = created;
     }
 
-    // Replay history if reconnecting (status: "resumed" or if history array is non-empty)
-    if (msg.history && msg.history.length > 0) {
-      term.writeln('[Replaying session history...]');
+    if (msg.status === 'joined') {
+      // Joined an active session as a secondary viewer — live output streams from here
+      term.writeln('\x1b[90m[Joined active session — live output below]\x1b[0m');
+    } else if (msg.history && msg.history.length > 0) {
+      // Reconnected to a session whose PTY exited — replay history for context
+      term.writeln('\x1b[90m[Replaying session history...]\x1b[0m');
       msg.history.forEach(line => term.write(line));
-      term.writeln('[End of history]');
+      term.writeln('\x1b[90m[End of history — start a new session below]\x1b[0m');
     }
 
     console.log(`Connected to session ${msg.sessionId} (status: ${msg.status})`);

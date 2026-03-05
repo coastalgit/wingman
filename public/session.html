@@ -6,10 +6,40 @@
   <title>Wingman — Claude Code Terminal</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.css" />
   <link rel="stylesheet" href="/styles.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0d1117;
+      display: flex;
+      flex-direction: column;
+    }
+    #session-info {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      background: #1c2128;
+      color: #8b949e;
+      font-size: 12px;
+      border-bottom: 1px solid #30363d;
+      font-family: monospace;
+    }
+    #terminal {
+      flex: 1;
+      overflow: hidden;
+      /* xterm.js needs explicit dimensions — FitAddon reads this */
+      min-height: 0;
+    }
+    /* Ensure xterm viewport fills its container */
+    .xterm, .xterm-viewport, .xterm-screen {
+      height: 100% !important;
+    }
+  </style>
 </head>
 <body>
-  <div id="session-info" style="padding: 8px; background: #1c2128; color: #8b949e; font-size: 12px; border-bottom: 1px solid #30363d; font-family: monospace;">
-    <span id="session-description">connecting...</span> | <span id="session-created">connecting...</span>
+  <div id="session-info">
+    <span id="session-description">connecting...</span> &nbsp;|&nbsp; <span id="session-created"></span>
   </div>
   <div id="terminal"></div>
 
