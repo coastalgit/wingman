@@ -296,13 +296,13 @@ button { font-family: var(--font-sans); }
   border-color: var(--border-2);
 }
 
-/* Active sessions get the orange accent */
-.session-card:has(.status-badge.active) {
+/* Active sessions get the orange accent; stopped sessions are dimmed */
+.session-card.active {
   border-left-color: var(--primary);
 }
 
-.session-card:has(.status-badge.reconnectable) {
-  border-left-color: var(--warning);
+.session-card.reconnectable {
+  opacity: 0.7;
 }
 
 .session-info {
@@ -328,58 +328,32 @@ button { font-family: var(--font-sans); }
 }
 
 
-/* ─── Status Badges ───────────────────────────────────── */
+/* ─── Status Dot ──────────────────────────────────────── */
 
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 500;
-  margin-left: 12px;
-  flex-shrink: 0;
-  letter-spacing: 0.02em;
-}
-
-.status-badge::before {
+/* Small inline indicator shown inside session-description area */
+.session-card.active .session-description::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 5px rgba(139, 199, 139, 0.6);
+  margin-right: 8px;
+  vertical-align: middle;
   flex-shrink: 0;
 }
 
-.status-badge.active {
-  background: rgba(139, 199, 139, 0.1);
-  color: var(--success);
-  border: 1px solid rgba(139, 199, 139, 0.25);
-}
-
-.status-badge.active::before {
-  background: var(--success);
-  box-shadow: 0 0 6px rgba(139, 199, 139, 0.5);
-}
-
-.status-badge.reconnectable {
-  background: rgba(226, 177, 70, 0.1);
-  color: var(--warning);
-  border: 1px solid rgba(226, 177, 70, 0.25);
-}
-
-.status-badge.reconnectable::before {
-  background: var(--warning);
-}
-
-.status-badge.closed {
-  background: rgba(115, 115, 115, 0.1);
-  color: var(--text-3);
-  border: 1px solid rgba(115, 115, 115, 0.2);
-}
-
-.status-badge.closed::before {
+.session-card.reconnectable .session-description::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: var(--text-4);
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 

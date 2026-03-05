@@ -98,7 +98,6 @@ exitBtn.addEventListener('click', async () => {
 
 // Render session cards using DOM methods (no innerHTML for security)
 function renderSessions(sessions) {
-  // Clear existing content
   sessionsList.replaceChildren();
 
   if (!sessions || sessions.length === 0) {
@@ -112,10 +111,12 @@ function renderSessions(sessions) {
   }
 
   sessions.forEach((session) => {
-    const card = document.createElement('div');
-    card.className = 'session-card';
+    const isActive = session.status === 'active';
 
-    // Info section
+    const card = document.createElement('div');
+    card.className = 'session-card ' + session.status;
+
+    // Info
     const info = document.createElement('div');
     info.className = 'session-info';
 
@@ -126,57 +127,36 @@ function renderSessions(sessions) {
 
     const meta = document.createElement('div');
     meta.className = 'session-meta';
-    const created = new Date(session.createdAt).toLocaleString();
-    meta.textContent = created;
+    meta.textContent = new Date(session.createdAt).toLocaleString();
     info.appendChild(meta);
 
     card.appendChild(info);
 
-    // Status badge
-    const badge = document.createElement('span');
-    badge.className = 'status-badge ' + session.status;
-    badge.textContent = session.status;
-    card.appendChild(badge);
-
-    // Actions
+    // Actions — Open is always available; Stop only when Claude is running
     const actions = document.createElement('div');
     actions.className = 'session-actions';
 
-    if (session.status === 'active') {
-      const openBtn = document.createElement('button');
-      openBtn.className = 'btn secondary';
-      openBtn.textContent = 'Open';
-      openBtn.addEventListener('click', () => {
-        window.open('/session/' + session.id, '_blank');
-      });
-      actions.appendChild(openBtn);
+    const openBtn = document.createElement('button');
+    openBtn.className = 'btn secondary';
+    openBtn.textContent = 'Open';
+    openBtn.addEventListener('click', () => window.open('/session/' + session.id, '_blank'));
+    actions.appendChild(openBtn);
 
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'btn danger';
-      closeBtn.textContent = 'Close';
-      closeBtn.addEventListener('click', async () => {
-        closeBtn.disabled = true;
+    if (isActive) {
+      const stopBtn = document.createElement('button');
+      stopBtn.className = 'btn danger';
+      stopBtn.textContent = 'Stop';
+      stopBtn.addEventListener('click', async () => {
+        stopBtn.disabled = true;
         try {
           await fetch('/api/sessions/' + session.id, { method: 'DELETE' });
         } catch (err) {
-          console.error('Failed to close session:', err);
-          closeBtn.disabled = false;
+          console.error('Failed to stop session:', err);
+          stopBtn.disabled = false;
         }
       });
-      actions.appendChild(closeBtn);
+      actions.appendChild(stopBtn);
     }
-
-    if (session.status === 'reconnectable') {
-      const openBtn = document.createElement('button');
-      openBtn.className = 'btn secondary';
-      openBtn.textContent = 'Open';
-      openBtn.addEventListener('click', () => {
-        window.open('/session/' + session.id, '_blank');
-      });
-      actions.appendChild(openBtn);
-    }
-
-    // Closed sessions: no action buttons
 
     card.appendChild(actions);
     sessionsList.appendChild(card);
