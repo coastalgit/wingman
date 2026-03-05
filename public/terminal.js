@@ -23,6 +23,7 @@ requestAnimationFrame(() => fitAddon.fit());
 
 // WebSocket connection to server
 const ws = new WebSocket('ws://' + location.host);
+let serverShuttingDown = false;
 
 // Retrieve session ID from URL path first, then fall back to localStorage
 const pathMatch = window.location.pathname.match(/\/session\/(.+)/);
@@ -68,6 +69,7 @@ ws.onmessage = (event) => {
   } else if (msg.type === 'session-ended') {
     term.writeln('\r\n\x1b[33m[Session ended]\x1b[0m');
   } else if (msg.type === 'shutdown') {
+    serverShuttingDown = true;
     term.writeln('\r\n\x1b[31m[Wingman shutting down...]\x1b[0m');
   } else if (msg.type === 'error') {
     term.writeln('\r\n\x1b[31m[Error: ' + msg.message + ']\x1b[0m');
@@ -106,7 +108,11 @@ ws.onopen = () => {
 };
 
 ws.onclose = () => {
-  term.writeln('\r\n\x1b[31m[Connection closed]\x1b[0m');
+  if (serverShuttingDown) {
+    term.writeln('\r\n\x1b[31m[Wingman stopped]\x1b[0m');
+  } else {
+    term.writeln('\r\n\x1b[31m[Connection closed]\x1b[0m');
+  }
 };
 
 ws.onerror = (err) => {

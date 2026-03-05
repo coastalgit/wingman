@@ -300,6 +300,10 @@ wss.on('connection', (ws) => {
         session.primaryWs = null;
       }
     }
+    // Broadcast to MC so session list stays current (e.g. after /exit or tab close)
+    if (sessionId) {
+      broadcastSessionUpdate();
+    }
     console.log('Client disconnected');
   });
 

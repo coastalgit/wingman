@@ -47,10 +47,14 @@ ws.onmessage = (event) => {
 };
 
 ws.onclose = () => {
-  // If not already showing shutdown overlay, show disconnect state
-  if (shutdownOverlay.classList.contains('hidden')) {
+  const overlayContent = document.querySelector('.overlay-content');
+  if (!shutdownOverlay.classList.contains('hidden')) {
+    // Server finished shutting down — update from "shutting down..." to final state
+    overlayContent.textContent = 'Wingman stopped.';
+  } else {
+    // Unexpected connection loss
     shutdownOverlay.classList.remove('hidden');
-    document.querySelector('.overlay-content').textContent = 'Connection lost.';
+    overlayContent.textContent = 'Connection lost.';
   }
 };
 
