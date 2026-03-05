@@ -52,14 +52,10 @@ ws.onmessage = (event) => {
       sessionCreatedSpan.textContent = created;
     }
 
-    if (msg.status === 'joined') {
-      // Joined an active session as a secondary viewer — live output streams from here
-      term.writeln('\x1b[90m[Joined active session — live output below]\x1b[0m');
-    } else if (msg.history && msg.history.length > 0) {
-      // Reconnected to a session whose PTY exited — replay history for context
-      term.writeln('\x1b[90m[Replaying session history...]\x1b[0m');
-      msg.history.forEach(line => term.write(line));
-      term.writeln('\x1b[90m[End of history — start a new session below]\x1b[0m');
+    if (msg.history && msg.history.length > 0) {
+      // Replay all buffered PTY output — xterm.js processes escape sequences in order
+      // and arrives at the same visual state as any other connected tab
+      msg.history.forEach(chunk => term.write(chunk));
     }
 
     console.log(`Connected to session ${msg.sessionId} (status: ${msg.status})`);

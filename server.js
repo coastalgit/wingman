@@ -249,13 +249,10 @@ wss.on('connection', (ws) => {
             ws.isPrimary = true;
           }
 
-          // Active sessions: don't replay history — raw PTY output (TUI escape sequences,
-          // cursor moves, screen clears) renders as garbage in a fresh terminal context.
-          // Secondary viewers just join the live stream from this point forward.
-          // Reconnectable sessions (PTY dead): replay history so user has context.
-          const isActive = !!(session.ptyProcess && !session.closed);
-          const history = isActive ? [] : sessionManager.getHistory(sessionId);
-          const status = isActive && !ws.isPrimary ? 'joined' : (history.length > 0 ? 'resumed' : 'new');
+          // Always replay full history — xterm.js processes all escape sequences in order
+          // and arrives at the correct terminal state. This gives every tab the same view.
+          const history = sessionManager.getHistory(sessionId);
+          const status = history.length > 0 ? 'resumed' : 'new';
 
           console.log(`Client connected to session ${sessionId} (status: ${status}, primary: ${ws.isPrimary || false})`);
           ws.send(JSON.stringify({
