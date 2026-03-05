@@ -16,8 +16,12 @@ const http = require('http');
 const path = require('path');
 const pty = require('node-pty');
 const SessionManager = require('./lib/session-manager.js');
+const { acquireLock, releaseLock } = require('./lib/process-lock.js');
+const { initManualMode } = require('./lib/manual-mode.js');
 
 const PORT = process.env.PORT || 7891;
+const lockPath = path.join(process.cwd(), '.ai', 'wingman', 'wingman.pid');
+const MANUAL_MODE = process.argv.includes('--manual');
 
 // Git Bash path detection — override with WINGMAN_BASH_PATH env var if needed
 const BASH_PATH = process.env.WINGMAN_BASH_PATH
@@ -46,6 +50,11 @@ app.get('/session/:id([0-9a-f-]{36})', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'session.html'));
 });
 
+// REST API: Server mode (normal vs manual)
+app.get('/api/mode', (req, res) => {
+  res.json({ manual: MANUAL_MODE });
+});
+
 // REST API: List all sessions with status
 app.get('/api/sessions', (req, res) => {
   res.json(sessionManager.getAllSessionsWithStatus());
@@ -53,6 +62,10 @@ app.get('/api/sessions', (req, res) => {
 
 // REST API: Create a new session (spawns PTY)
 app.post('/api/sessions', (req, res) => {
+  if (MANUAL_MODE) {
+    return res.status(400).json({ error: 'Manual mode active — no Claude sessions spawned', manual: true });
+  }
+
   const description = (req.body && req.body.description) || 'Claude Code session';
 
   const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
@@ -129,8 +142,19 @@ app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Acquire PID lock — blocks duplicate launches (prints existing URL and exits if alive)
+acquireLock(lockPath, PORT);
+
 // Initialize SessionManager (singleton) on server startup
 const sessionManager = new SessionManager(process.cwd());
+
+// Manual mode: create prompt/context files, skip PTY spawning
+if (MANUAL_MODE) {
+  const { promptPath, contextPath } = initManualMode(sessionManager.sessionsDir);
+  console.log('Wingman started in manual mode. Session files:');
+  console.log('  Prompt:  ' + promptPath);
+  console.log('  Context: ' + contextPath);
+}
 
 // Broadcast session list update to all Mission Control clients
 function broadcastSessionUpdate() {
@@ -143,8 +167,11 @@ function broadcastSessionUpdate() {
   });
 }
 
-// Graceful shutdown: broadcast, kill PTYs, close server
+// Graceful shutdown: broadcast, kill PTYs, release lock, close server
+let shuttingDown = false;
 function gracefulShutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('\nShutting down...');
 
   // Broadcast shutdown to all WebSocket clients
@@ -161,6 +188,9 @@ function gracefulShutdown() {
       sessionManager.closeSession(sessionId);
     }
   });
+
+  // Release PID lock
+  releaseLock(lockPath);
 
   // Close WebSocket connections before shutting down HTTP server
   wss.clients.forEach((ws) => ws.terminate());
@@ -244,11 +274,19 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Wingman running at http://localhost:${PORT}`);
+  const modeLabel = MANUAL_MODE ? 'Wingman (manual mode)' : 'Wingman';
+  console.log(`${modeLabel} running at http://localhost:${PORT}`);
   // open v10 is ESM-only; use dynamic import for CJS compatibility
   import('open').then(({ default: open }) => open(`http://localhost:${PORT}`));
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', () => gracefulShutdown());
+
+// Safety net: release lock on any exit (sync-only, no async work)
+process.on('exit', () => releaseLock(lockPath));
+
+// Prevent PID file from persisting on uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
   gracefulShutdown();
 });

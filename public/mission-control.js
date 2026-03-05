@@ -4,6 +4,22 @@ const sessionsList = document.getElementById('sessions-list');
 const newSessionBtn = document.getElementById('new-session-btn');
 const exitBtn = document.getElementById('exit-btn');
 const shutdownOverlay = document.getElementById('shutdown-overlay');
+const modeBanner = document.getElementById('mode-banner');
+
+let isManualMode = false;
+
+// Check server mode and adapt UI accordingly
+fetch('/api/mode')
+  .then((r) => r.json())
+  .then((data) => {
+    if (data.manual) {
+      isManualMode = true;
+      modeBanner.textContent = 'MANUAL MODE — No Claude sessions spawned. Files at .ai/wingman/cprompt.md and .ai/wingman/ccontext.md';
+      modeBanner.style.display = 'block';
+      newSessionBtn.disabled = true;
+    }
+  })
+  .catch(() => {/* non-critical, ignore */});
 
 // WebSocket connection to server
 const ws = new WebSocket('ws://' + location.host);
@@ -84,7 +100,9 @@ function renderSessions(sessions) {
   if (!sessions || sessions.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = "No sessions. Click 'New Session' to start.";
+    empty.textContent = isManualMode
+      ? "Manual mode active. Edit prompt/context files in .ai/wingman/ and use /ccc, /ccp in your Claude Code session."
+      : "No sessions. Click 'New Session' to start.";
     sessionsList.appendChild(empty);
     return;
   }
