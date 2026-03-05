@@ -19,7 +19,14 @@ const SessionManager = require('./lib/session-manager.js');
 const { acquireLock, releaseLock } = require('./lib/process-lock.js');
 const { initManualMode } = require('./lib/manual-mode.js');
 
-const PORT = process.env.PORT || 7891;
+// Port: --port CLI arg > PORT env var > 0 (OS auto-assigns a free port)
+// Using 0 means multiple Wingman instances in different directories never conflict.
+const portArg = (() => {
+  const i = process.argv.indexOf('--port');
+  return i !== -1 ? parseInt(process.argv[i + 1], 10) : null;
+})();
+const PORT = portArg || parseInt(process.env.PORT, 10) || 0;
+
 const lockPath = path.join(process.cwd(), '.ai', 'wingman', 'wingman.pid');
 const MANUAL_MODE = process.argv.includes('--manual');
 
@@ -118,9 +125,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
-
-// Acquire PID lock — blocks duplicate launches (prints existing URL and exits if alive)
-acquireLock(lockPath, PORT);
 
 // Initialize SessionManager (singleton) on server startup
 const sessionManager = new SessionManager(process.cwd());
@@ -325,10 +329,14 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, () => {
+  const actualPort = server.address().port;
+
+  // Acquire PID lock now that we know the actual port (PORT may have been 0)
+  acquireLock(lockPath, actualPort);
+
   const modeLabel = MANUAL_MODE ? 'Wingman (manual mode)' : 'Wingman';
-  console.log(`${modeLabel} running at http://localhost:${PORT}`);
-  // open v10 is ESM-only; use dynamic import for CJS compatibility
-  import('open').then(({ default: open }) => open(`http://localhost:${PORT}`));
+  console.log(`${modeLabel} running at http://localhost:${actualPort}`);
+  import('open').then(({ default: open }) => open(`http://localhost:${actualPort}`));
 });
 
 process.on('SIGINT', () => gracefulShutdown());
