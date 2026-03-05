@@ -13,9 +13,9 @@ Wingman v2 replaces the Flutter desktop app with a Node.js web UI for Claude Cod
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Terminal Pipe PoC** - Prove browser-to-Claude PTY pipe works end-to-end on Windows/WSL
-- [ ] **Phase 2: Session Management** - Multiple sessions with reconnection, history replay, and graceful lifecycle
-- [ ] **Phase 3: Mission Control** - Project-scoped launcher, process lifecycle enforcement, and manual mode fallback
-- [ ] **Phase 4: Distribution** - npx-installable package with native addon support
+- [x] **Phase 2: Session Management** - Multiple sessions with reconnection, history replay, and graceful lifecycle
+- [x] **Phase 3: Mission Control** - Project-scoped launcher, process lifecycle enforcement, and manual mode fallback
+- [x] **Phase 4: Distribution** - npx-installable package with native addon support
 
 ## Phase Details
 
@@ -49,7 +49,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — SessionManager class: UUID generation, session tracking, terminal history buffer, file persistence
-- [ ] 02-02-PLAN.md — Browser reconnection: handshake protocol, localStorage persistence, history replay, metadata display
+- [x] 02-02-PLAN.md — Browser reconnection: handshake protocol, localStorage persistence, history replay, metadata display
 
 ### Phase 3: Mission Control
 **Goal**: A developer manages all Claude Code sessions from a central launcher, with robust process lifecycle guarantees and a manual-mode fallback
@@ -64,9 +64,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Mission Control two-page architecture (dashboard + session routing + REST API + WebSocket broadcast)
-- [ ] 03-02-PLAN.md — Process lifecycle (PID lock, stale cleanup, graceful shutdown, zombie prevention)
-- [ ] 03-03-PLAN.md — Manual mode (--manual flag, cprompt.md/ccontext.md file writing, UI adaptation)
+- [x] 03-01-PLAN.md — Mission Control two-page architecture (dashboard + session routing + REST API + WebSocket broadcast)
+- [x] 03-02-PLAN.md — Process lifecycle (PID lock, stale cleanup, graceful shutdown, zombie prevention)
+- [x] 03-03-PLAN.md — Manual mode (--manual flag, cprompt.md/ccontext.md file writing, UI adaptation)
 
 ### Phase 4: Distribution
 **Goal**: Any developer can run `npx wingman` in a project directory and it just works, with no manual build tool setup
@@ -75,10 +75,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `npx wingman` installs and runs the package without requiring a global install or manual native build setup
   2. node-pty native addon resolves correctly on Windows (prebuilt binaries or transparent compilation)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 04-01: TBD
+- [x] 04-01-PLAN.md — bin entry point, package.json bin/files/engines, Git Bash auto-detection, auto-port
 
 ## Progress
 
@@ -89,5 +89,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Terminal Pipe PoC | 3/3 | ✅ Complete | 2026-03-04 |
 | 2. Session Management | 2/2 | ✅ Complete | 2026-03-04 |
-| 3. Mission Control | 0/3 | Not started | - |
-| 4. Distribution | 0/1 | Not started | - |
+| 3. Mission Control | 3/3 | ✅ Complete | 2026-03-05 |
+| 4. Distribution | 1/1 | ✅ Complete | 2026-03-05 |
