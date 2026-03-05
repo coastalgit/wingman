@@ -23,13 +23,30 @@ const PORT = process.env.PORT || 7891;
 const lockPath = path.join(process.cwd(), '.ai', 'wingman', 'wingman.pid');
 const MANUAL_MODE = process.argv.includes('--manual');
 
-// Git Bash path detection — override with WINGMAN_BASH_PATH env var if needed
-const BASH_PATH = process.env.WINGMAN_BASH_PATH
-  || 'C:\\Program Files\\Git\\bin\\bash.exe';
+// Git Bash path detection — checks common Windows install locations.
+// Override with WINGMAN_BASH_PATH env var if your installation is non-standard.
+const fs = require('fs');
 
-if (!require('fs').existsSync(BASH_PATH)) {
-  console.error(`Git Bash not found at: ${BASH_PATH}`);
-  console.error('Fix: set WINGMAN_BASH_PATH env var to your Git Bash path.');
+function findGitBash() {
+  const pf   = process.env.PROGRAMFILES        || 'C:\\Program Files';
+  const pf86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
+  const local = process.env.LOCALAPPDATA        || '';
+
+  const candidates = [
+    process.env.WINGMAN_BASH_PATH,
+    path.join(pf,   'Git', 'bin', 'bash.exe'),
+    path.join(pf86, 'Git', 'bin', 'bash.exe'),
+    local && path.join(local, 'Programs', 'Git', 'bin', 'bash.exe'),
+  ].filter(Boolean);
+
+  return candidates.find(p => fs.existsSync(p)) || null;
+}
+
+const BASH_PATH = findGitBash();
+
+if (!BASH_PATH) {
+  console.error('Git Bash not found. Please install Git for Windows: https://git-scm.com/download/win');
+  console.error('Or set the WINGMAN_BASH_PATH environment variable to your bash.exe path.');
   process.exit(1);
 }
 
