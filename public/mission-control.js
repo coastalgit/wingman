@@ -80,10 +80,27 @@ ws.onerror = (err) => {
   console.error("WebSocket error:", err);
 };
 
-// New Session button — prompt for a name like the Flutter app did
+// Polling fallback — catches any missed WS broadcasts (e.g. natural PTY exit)
+setInterval(async () => {
+  if (ws.readyState !== WebSocket.OPEN) return;
+  try {
+    const res = await fetch("/api/sessions");
+    if (!res.ok) return;
+    const sessions = await res.json();
+    renderSessions(sessions);
+    const active = sessions.filter((s) => s.status === "active").length;
+    const el = document.getElementById("statusSessions");
+    if (el) el.textContent = active + " active session" + (active !== 1 ? "s" : "");
+  } catch { /* non-critical */ }
+}, 4000);
+
+// New Session button — prompt for name, open window immediately to avoid popup block
 newSessionBtn.addEventListener("click", async () => {
   const description = prompt("Session name:", "Claude Code session");
   if (!description) return; // user cancelled
+
+  // Open blank window now (within user gesture) before the async fetch
+  const win = window.open("", "_blank");
 
   newSessionBtn.disabled = true;
   try {
@@ -93,11 +110,14 @@ newSessionBtn.addEventListener("click", async () => {
       body: JSON.stringify({ description: description.trim() }),
     });
     const data = await res.json();
-    if (data.sessionId) {
-      window.open("/session/" + data.sessionId, "_blank");
+    if (data.sessionId && win) {
+      win.location.href = "/session/" + data.sessionId;
+    } else if (win) {
+      win.close();
     }
   } catch (err) {
     console.error("Failed to create session:", err);
+    if (win) win.close();
   } finally {
     newSessionBtn.disabled = false;
   }
@@ -113,6 +133,8 @@ exitBtn.addEventListener("click", async () => {
     // Server is shutting down, connection errors are expected
   }
 });
+
+let selectedSessionId = null;
 
 // Render session cards using DOM methods (no innerHTML for security)
 function renderSessions(sessions) {
@@ -136,7 +158,12 @@ function renderSessions(sessions) {
     const name = session.description || "Unnamed session";
 
     const card = document.createElement("div");
-    card.className = "session-card " + session.status;
+    card.className = "session-card " + session.status + (session.id === selectedSessionId ? " selected" : "");
+    card.addEventListener("click", () => {
+      selectedSessionId = session.id === selectedSessionId ? null : session.id;
+      document.querySelectorAll(".session-card").forEach(c => c.classList.remove("selected"));
+      if (selectedSessionId) card.classList.add("selected");
+    });
 
     // Left: delete button (non-active sessions only)
     const leftZone = document.createElement("div");
