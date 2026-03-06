@@ -153,10 +153,9 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
   sessionManager.appendPromptHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    // Clear any existing input (Ctrl+U), type command, then submit (Enter)
-    // Small delay between text and Enter so Claude's TUI processes them separately
-    session.ptyProcess.write('\x15/ccp');
-    setTimeout(() => session.ptyProcess.write('\r'), 50);
+    // Write the prompt text directly into the PTY so it's visible in the terminal.
+    // Ctrl+U clears any pending input, then the prompt text is typed and submitted.
+    session.ptyProcess.write('\x15' + text + '\r');
   }
 
   res.json({ status: 'sent', entry });
