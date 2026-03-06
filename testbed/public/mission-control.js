@@ -68,7 +68,7 @@ ws.onclose = () => {
   const overlayContent = document.querySelector(".overlay-content");
   if (!shutdownOverlay.classList.contains("hidden")) {
     // Server finished shutting down — update from "shutting down..." to final state
-    overlayContent.textContent = "Wingman ended";
+    overlayContent.textContent = "Wingman ended.";
   } else {
     // Unexpected connection loss
     shutdownOverlay.classList.remove("hidden");

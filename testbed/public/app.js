@@ -208,6 +208,54 @@ document.addEventListener('DOMContentLoaded', () => {
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
+  // ─── Modal System ──────────────────────────────────
+
+  const modalBackdropEl = document.getElementById('modalBackdrop');
+  let activeModalId = null;
+
+  // isModal: true = requires explicit Cancel/Save (no click-outside, no Escape)
+  //          false = dismissible (click-outside and Escape close it)
+  let activeModalIsStrict = false;
+
+  function openModal(id, isModal) {
+    closeModal();
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    activeModalId = id;
+    activeModalIsStrict = !!isModal;
+    modalBackdropEl.classList.add('open');
+    modal.classList.add('active');
+    const input = modal.querySelector('input, select, textarea');
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+
+  function closeModal() {
+    if (!activeModalId) return;
+    const modal = document.getElementById(activeModalId);
+    if (modal) modal.classList.remove('active');
+    modalBackdropEl.classList.remove('open');
+    activeModalId = null;
+    activeModalIsStrict = false;
+  }
+
+  // Click backdrop to close — only for non-strict modals
+  modalBackdropEl.addEventListener('click', (e) => {
+    if (e.target === modalBackdropEl && !activeModalIsStrict) closeModal();
+  });
+
+  // Close buttons inside modals (always work)
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', closeModal);
+  });
+
+  // Escape key — only for non-strict modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && activeModalId && !activeModalIsStrict) {
+      e.preventDefault();
+      closeModal();
+    }
+  });
+
   // ─── Session List ─────────────────────────────────
 
   function createSessionItem(session) {
@@ -519,9 +567,55 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Template inserted', 'success');
   });
 
-  // New session
+  // ─── New Session Dialog ─────────────────────────────
+
+  const newSessionNameEl = document.getElementById('newSessionName');
+  const createSessionBtnEl = document.getElementById('createSessionBtn');
+
   document.getElementById('newSessionBtn').addEventListener('click', () => {
-    showToast('New session dialog would open here', 'info');
+    newSessionNameEl.value = '';
+    createSessionBtnEl.disabled = true;
+    document.getElementById('newSessionProject').textContent =
+      SESSIONS[0] ? SESSIONS[0].project : '~/projects';
+    openModal('modalNewSession', true);
+  });
+
+  newSessionNameEl.addEventListener('input', () => {
+    createSessionBtnEl.disabled = !newSessionNameEl.value.trim();
+  });
+
+  // Enter key in name field triggers create
+  newSessionNameEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && newSessionNameEl.value.trim()) {
+      e.preventDefault();
+      createSessionBtnEl.click();
+    }
+  });
+
+  createSessionBtnEl.addEventListener('click', () => {
+    const name = newSessionNameEl.value.trim();
+    if (!name) return;
+
+    const id = 'session-' + Date.now();
+    const project = SESSIONS[0] ? SESSIONS[0].project : '~/projects';
+    const newSession = {
+      id: id,
+      name: name,
+      project: project,
+      lastActive: 'Just now',
+      promptCount: 0,
+    };
+
+    SESSIONS.unshift(newSession);
+    PROMPT_HISTORY[id] = [];
+
+    // Pre-populate context with template
+    const template = '# Project Context\n\n## Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n';
+    SAMPLE_CONTEXTS[id] = template;
+
+    closeModal();
+    selectSession(id);
+    showToast('Session created', 'success');
   });
 
   // Menu toggle
@@ -541,14 +635,29 @@ document.addEventListener('DOMContentLoaded', () => {
     e.stopPropagation();
   });
 
+  // ─── Settings Dialog ────────────────────────────────
+
   document.getElementById('menuSettings').addEventListener('click', () => {
     headerMenu.classList.remove('open');
-    showToast('Settings panel would open here', 'info');
+    openModal('modalSettings', true);
   });
+
+  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    const fontSize = document.getElementById('settingFontSize').value + 'px';
+    const tabSize = document.getElementById('settingTabSize').value;
+    document.querySelectorAll('.code-textarea').forEach(el => {
+      el.style.fontSize = fontSize;
+      el.style.tabSize = tabSize;
+    });
+    closeModal();
+    showToast('Settings saved', 'success');
+  });
+
+  // ─── Help Dialog ───────────────────────────────────
 
   document.getElementById('menuHelp').addEventListener('click', () => {
     headerMenu.classList.remove('open');
-    showToast('Help panel would open here', 'info');
+    openModal('modalHelp');
   });
 
   // Keyboard shortcuts
