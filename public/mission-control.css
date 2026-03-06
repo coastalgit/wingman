@@ -249,9 +249,9 @@ button { font-family: var(--font-sans); }
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(234, 93, 6, 0.3);
+  box-shadow: 0 2px 8px var(--primary-mid);
 }
-.save-btn:hover { filter: brightness(1.1); box-shadow: 0 4px 16px rgba(234, 93, 6, 0.4); }
+.save-btn:hover { filter: brightness(1.1); box-shadow: 0 4px 16px var(--primary-mid); }
 .save-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 
@@ -321,7 +321,7 @@ button { font-family: var(--font-sans); }
 
 .session-card.selected {
   border-color: var(--border-2);
-  border-left-color: var(--brand);
+  border-left-color: var(--primary);
   background: var(--bg-overlay);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55),
               0 0 0 1px rgba(255, 255, 255, 0.06) inset;
