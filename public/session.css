@@ -218,7 +218,7 @@
   }
 
   .main-content {
-    flex: 1;
+    flex: 2;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -239,7 +239,7 @@
   }
 
   .terminal-section {
-    flex: 1;
+    flex: 3;
     display: flex;
     flex-direction: column;
     min-height: 200px;
