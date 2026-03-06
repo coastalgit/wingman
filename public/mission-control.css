@@ -190,9 +190,9 @@ button { font-family: var(--font-sans); }
 .exit-btn {
   padding: 6px 14px;
   background: none;
-  border: 1px solid var(--danger);
+  border: 1px solid var(--border-2);
   border-radius: var(--radius);
-  color: var(--danger);
+  color: var(--text-3);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
@@ -200,7 +200,7 @@ button { font-family: var(--font-sans); }
   transition: all 0.15s;
 }
 
-.exit-btn:hover { background: rgba(239, 68, 68, 0.1); }
+.exit-btn:hover { border-color: var(--danger); color: var(--danger); background: rgba(239, 68, 68, 0.08); }
 
 .exit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -288,31 +288,28 @@ button { font-family: var(--font-sans); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 18px;
+  padding: 14px 16px;
   margin-bottom: 10px;
   background: var(--bg-raised);
-  border: 1px solid var(--border-1);
-  border-left: 3px solid transparent;
+  border: 1px solid var(--border-3);
+  border-left: 6px solid transparent;
   border-radius: var(--radius);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   transition: all 0.18s ease;
   cursor: pointer;
 }
 
 .session-card:hover {
-  background: var(--bg-overlay);
-  border-color: var(--border-2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55),
-              0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  background: var(--bg-hover);
+  border-color: var(--border-3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
   transform: translateY(-1px);
 }
 
 .session-card.active {
   border-left-color: var(--primary);
   background: var(--bg-overlay);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5),
-              inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
 .session-card.reconnectable {
@@ -320,11 +317,10 @@ button { font-family: var(--font-sans); }
 }
 
 .session-card.selected {
-  border-color: var(--border-2);
+  border-color: var(--border-3);
   border-left-color: var(--primary);
   background: var(--bg-overlay);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55),
-              0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 
 .session-info { flex: 1; min-width: 0; }
@@ -379,17 +375,17 @@ button { font-family: var(--font-sans); }
 /* ─── Session Left Zone (delete) ─────────────────────── */
 
 .session-left {
-  width: 32px;
+  width: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-right: 4px;
+  margin-right: 8px;
 }
 
 .btn-icon {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,14 +395,10 @@ button { font-family: var(--font-sans); }
   cursor: pointer;
   transition: all 0.15s;
   padding: 0;
-  color: var(--text-4);
+  color: rgba(239, 68, 68, 0.55);
 }
 
 .btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }
-
-.btn-delete {
-  color: rgba(239, 68, 68, 0.6);
-}
 
 .btn-delete:hover {
   color: var(--danger);
