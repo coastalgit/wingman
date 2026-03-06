@@ -59,12 +59,16 @@ ws.onmessage = (event) => {
       msg.history.forEach((chunk) => term.write(chunk));
     }
 
-    // Notify session-ui that handshake is done
-    window.dispatchEvent(
-      new CustomEvent("wingman-session-ready", {
-        detail: { sessionId: msg.sessionId, description: desc },
-      }),
-    );
+    // Notify session-ui after terminal has had a chance to paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(
+          new CustomEvent("wingman-session-ready", {
+            detail: { sessionId: msg.sessionId, description: desc },
+          }),
+        );
+      });
+    });
 
     console.log(
       "Connected to session " + msg.sessionId + " (status: " + msg.status + ")",

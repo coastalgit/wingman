@@ -164,6 +164,9 @@ function renderSessions(sessions) {
       document.querySelectorAll(".session-card").forEach(c => c.classList.remove("selected"));
       if (selectedSessionId) card.classList.add("selected");
     });
+    card.addEventListener("dblclick", () => {
+      window.open("/session/" + session.id, "_blank");
+    });
 
     // Left: delete button (non-active sessions only)
     const leftZone = document.createElement("div");

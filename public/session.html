@@ -6,7 +6,7 @@
   <title>Wingman</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.css" />
   <link rel="stylesheet" href="/session.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -159,6 +159,14 @@
   </footer>
 
   <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Session Loading Overlay -->
+  <div id="session-loading-overlay" class="overlay">
+    <div class="overlay-loading">
+      <div class="loading-spinner"></div>
+      <div class="overlay-content" style="color: var(--text-2); font-size: 16px;">Starting session...</div>
+    </div>
+  </div>
 
   <!-- Session Ended Overlay -->
   <div id="session-ended-overlay" class="overlay hidden">
