@@ -1,0 +1,27 @@
+{
+  "id": "3b453c08-c1c0-4163-9227-4892e129f940",
+  "description": "s12",
+  "createdAt": "2026-03-06T01:57:21.367Z",
+  "closed": false,
+  "promptHistory": [
+    {
+      "id": "1772762288166",
+      "text": "What sport has a \"tee\"",
+      "timestamp": "2026-03-06T01:58:08.166Z",
+      "tokens": 6
+    },
+    {
+      "id": "1772762330306",
+      "text": "What sport has a \"sail\"",
+      "timestamp": "2026-03-06T01:58:50.306Z",
+      "tokens": 6
+    },
+    {
+      "id": "1772764763468",
+      "text": "What sport has a \"stick\"",
+      "timestamp": "2026-03-06T02:39:23.468Z",
+      "tokens": 6
+    }
+  ],
+  "contextText": "This is about sports"
+}

@@ -6,7 +6,7 @@
   <title>Wingman</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.css" />
   <link rel="stylesheet" href="/session.css" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -64,10 +64,13 @@
               class="code-textarea"
               id="contextEditor"
               spellcheck="false"
+              disabled
               placeholder="Write your project context in Markdown..."></textarea>
             <div class="context-actions">
-              <div></div>
-              <button class="send-btn" id="sendContextBtn">
+              <select class="template-select" id="templateSelect" disabled>
+                <option value="">Load template...</option>
+              </select>
+              <button class="send-btn" id="sendContextBtn" disabled>
                 Send context
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -116,10 +119,11 @@
               class="code-textarea"
               id="promptEditor"
               spellcheck="false"
+              disabled
               placeholder="Write your prompt here..."></textarea>
             <div class="prompt-actions">
-              <button class="clear-btn" id="clearPromptBtn">Clear</button>
-              <button class="send-btn" id="sendPromptBtn">
+              <button class="clear-btn" id="clearPromptBtn" disabled>Clear</button>
+              <button class="send-btn" id="sendPromptBtn" disabled>
                 Send prompt
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -146,7 +150,6 @@
   <footer class="status-bar">
     <div class="status-left">
       <span class="status-item">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
         <span id="statusProject">Wingman</span>
       </span>
     </div>
@@ -156,6 +159,14 @@
   </footer>
 
   <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Session Loading Overlay -->
+  <div id="session-loading-overlay" class="overlay">
+    <div class="overlay-loading">
+      <div class="loading-spinner"></div>
+      <div class="overlay-content" style="color: var(--text-2); font-size: 16px;">Starting session...</div>
+    </div>
+  </div>
 
   <!-- Session Ended Overlay -->
   <div id="session-ended-overlay" class="overlay hidden">

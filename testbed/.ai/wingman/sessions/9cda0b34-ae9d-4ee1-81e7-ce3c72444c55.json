@@ -3,5 +3,6 @@
   "description": "s4",
   "createdAt": "2026-03-05T19:38:48.906Z",
   "closed": true,
-  "promptHistory": []
+  "promptHistory": [],
+  "contextText": ""
 }

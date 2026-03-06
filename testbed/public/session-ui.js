@@ -21,6 +21,7 @@
   const historyListEl = document.getElementById('historyList');
   const historySearchEl = document.getElementById('historySearch');
 
+  const templateSelectEl = document.getElementById('templateSelect');
   const stopSessionBtn = document.getElementById('stopSessionBtn');
   const statusMessageEl = document.getElementById('statusMessage');
   const toastContainerEl = document.getElementById('toastContainer');
@@ -30,6 +31,7 @@
   let sessionId = null;
   let activeHistoryId = null;
   let historyData = [];
+  let contextAutoSent = false; // track whether context has been auto-sent this session
 
   // Disable UI until terminal is connected
   sendContextBtn.disabled = true;
@@ -63,6 +65,38 @@
     statusMessageEl.textContent = msg;
     if (duration) setTimeout(() => { statusMessageEl.textContent = 'Ready'; }, duration);
   }
+
+  // ─── Templates ──────────────────────────────────────
+
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(config => {
+      const templates = config && config.templates ? config.templates : {};
+      Object.keys(templates).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        templateSelectEl.appendChild(opt);
+      });
+    })
+    .catch(() => {});
+
+  templateSelectEl.addEventListener('change', () => {
+    const name = templateSelectEl.value;
+    if (!name) return;
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(config => {
+        const text = config && config.templates && config.templates[name];
+        if (text) {
+          contextEditorEl.value = text;
+          renderContextPreview();
+          updateContextCounts();
+        }
+        templateSelectEl.value = '';
+      })
+      .catch(() => {});
+  });
 
   // ─── Context ────────────────────────────────────────
 
@@ -112,8 +146,7 @@
         body: JSON.stringify({ text: contextEditorEl.value }),
       });
       if (res.ok) {
-        showToast('Context saved & /ccc sent to terminal', 'success');
-        setStatus('Ready');
+        setStatus('/ccc sent', 2000);
       } else {
         showToast('Failed to send context', 'info');
         setStatus('Ready');
@@ -143,6 +176,23 @@
     if (!sessionId) return;
 
     sendPromptBtn.disabled = true;
+
+    // On first prompt: auto-send context first if not blank
+    if (!contextAutoSent) {
+      contextAutoSent = true;
+      const ctxText = contextEditorEl.value.trim();
+      if (ctxText) {
+        setStatus('Sending context...');
+        try {
+          await fetch('/api/sessions/' + sessionId + '/context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: contextEditorEl.value }),
+          });
+        } catch (err) { console.error('Auto-send context failed:', err); }
+      }
+    }
+
     setStatus('Sending prompt...');
     try {
       const res = await fetch('/api/sessions/' + sessionId + '/prompt', {
@@ -160,9 +210,7 @@
           activeHistoryId = data.entry.id;
         }
         renderHistory(historySearchEl.value);
-
-        showToast('Prompt saved & /ccp sent to terminal', 'success');
-        setStatus('Ready');
+        setStatus('/ccp sent', 2000);
       } else {
         showToast('Failed to send prompt', 'info');
         setStatus('Ready');
@@ -338,12 +386,13 @@
   async function loadSessionData(sid) {
     sessionId = sid;
 
-    // Enable UI now that we have a session
+    // Enable UI now that terminal is connected
     sendContextBtn.disabled = false;
     sendPromptBtn.disabled = false;
     clearPromptBtn.disabled = false;
     contextEditorEl.disabled = false;
     promptEditorEl.disabled = false;
+    templateSelectEl.disabled = false;
     stopSessionBtn.disabled = false;
 
     // Start with clean editors — shared files belong to whoever last sent,
@@ -354,18 +403,30 @@
     updateContextCounts();
     updatePromptCounts();
 
-    // Load context (shared file) and restore editor
+    // Load context (per-session), falling back to default template if blank
     try {
       const ctxRes = await fetch('/api/sessions/' + sid + '/context');
       if (ctxRes.ok) {
         const ctxData = await ctxRes.json();
         if (ctxData.text) {
           contextEditorEl.value = ctxData.text;
-          renderContextPreview();
-          updateContextCounts();
         }
       }
     } catch (err) { console.error('Failed to load context:', err); }
+
+    // If still blank, pre-fill with the default template
+    if (!contextEditorEl.value.trim()) {
+      try {
+        const cfgRes = await fetch('/api/config');
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          const defaultText = cfg.templates && cfg.templates.default;
+          if (defaultText) contextEditorEl.value = defaultText;
+        }
+      } catch (err) { /* non-critical */ }
+    }
+    renderContextPreview();
+    updateContextCounts();
 
     // Load prompt history (per-session)
     try {
@@ -374,6 +435,8 @@
         historyData = await res.json();
         historyData.reverse();
         renderHistory();
+        // If history exists, context was already sent in a previous interaction
+        if (historyData.length > 0) contextAutoSent = true;
       }
     } catch (err) { console.error('Failed to load history:', err); }
   }
@@ -385,6 +448,10 @@
     if (overlay) overlay.classList.remove('hidden');
     sendContextBtn.disabled = true;
     sendPromptBtn.disabled = true;
+    clearPromptBtn.disabled = true;
+    contextEditorEl.disabled = true;
+    promptEditorEl.disabled = true;
+    templateSelectEl.disabled = true;
     stopSessionBtn.disabled = true;
   });
 
@@ -404,12 +471,14 @@
   // ─── Initialize ─────────────────────────────────────
 
   window.addEventListener('wingman-session-ready', (e) => {
+    const loadingOverlay = document.getElementById('session-loading-overlay');
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    // Re-fit terminal now that overlay is gone and full layout is visible
+    if (window.wingmanTerminal && window.wingmanTerminal.fitAddon) {
+      requestAnimationFrame(() => window.wingmanTerminal.fitAddon.fit());
+    }
     loadSessionData(e.detail.sessionId);
   });
-
-  if (window.wingmanTerminal && window.wingmanTerminal.sessionId) {
-    loadSessionData(window.wingmanTerminal.sessionId);
-  }
 
   setStatus('Ready');
 })();

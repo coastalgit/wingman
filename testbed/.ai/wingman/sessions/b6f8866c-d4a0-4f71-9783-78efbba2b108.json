@@ -3,5 +3,6 @@
   "description": "s3",
   "createdAt": "2026-03-05T19:13:17.945Z",
   "closed": false,
-  "promptHistory": []
+  "promptHistory": [],
+  "contextText": ""
 }

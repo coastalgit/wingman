@@ -9,6 +9,19 @@
       "text": "/usage",
       "timestamp": "2026-03-06T01:17:27.262Z",
       "tokens": 2
+    },
+    {
+      "id": "1772760658568",
+      "text": "What color is the grass",
+      "timestamp": "2026-03-06T01:30:58.568Z",
+      "tokens": 6
+    },
+    {
+      "id": "1772762630900",
+      "text": "What color is the grass",
+      "timestamp": "2026-03-06T02:03:50.900Z",
+      "tokens": 6
     }
-  ]
+  ],
+  "contextText": "this on about the pretty colors"
 }

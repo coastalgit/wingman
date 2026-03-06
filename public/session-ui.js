@@ -31,6 +31,7 @@
   let sessionId = null;
   let activeHistoryId = null;
   let historyData = [];
+  let contextAutoSent = false; // track whether context has been auto-sent this session
 
   // Disable UI until terminal is connected
   sendContextBtn.disabled = true;
@@ -175,6 +176,23 @@
     if (!sessionId) return;
 
     sendPromptBtn.disabled = true;
+
+    // On first prompt: auto-send context first if not blank
+    if (!contextAutoSent) {
+      contextAutoSent = true;
+      const ctxText = contextEditorEl.value.trim();
+      if (ctxText) {
+        setStatus('Sending context...');
+        try {
+          await fetch('/api/sessions/' + sessionId + '/context', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: contextEditorEl.value }),
+          });
+        } catch (err) { console.error('Auto-send context failed:', err); }
+      }
+    }
+
     setStatus('Sending prompt...');
     try {
       const res = await fetch('/api/sessions/' + sessionId + '/prompt', {
@@ -385,18 +403,30 @@
     updateContextCounts();
     updatePromptCounts();
 
-    // Load context (shared file) and restore editor
+    // Load context (per-session), falling back to default template if blank
     try {
       const ctxRes = await fetch('/api/sessions/' + sid + '/context');
       if (ctxRes.ok) {
         const ctxData = await ctxRes.json();
         if (ctxData.text) {
           contextEditorEl.value = ctxData.text;
-          renderContextPreview();
-          updateContextCounts();
         }
       }
     } catch (err) { console.error('Failed to load context:', err); }
+
+    // If still blank, pre-fill with the default template
+    if (!contextEditorEl.value.trim()) {
+      try {
+        const cfgRes = await fetch('/api/config');
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json();
+          const defaultText = cfg.templates && cfg.templates.default;
+          if (defaultText) contextEditorEl.value = defaultText;
+        }
+      } catch (err) { /* non-critical */ }
+    }
+    renderContextPreview();
+    updateContextCounts();
 
     // Load prompt history (per-session)
     try {
@@ -405,6 +435,8 @@
         historyData = await res.json();
         historyData.reverse();
         renderHistory();
+        // If history exists, context was already sent in a previous interaction
+        if (historyData.length > 0) contextAutoSent = true;
       }
     } catch (err) { console.error('Failed to load history:', err); }
   }
@@ -439,6 +471,12 @@
   // ─── Initialize ─────────────────────────────────────
 
   window.addEventListener('wingman-session-ready', (e) => {
+    const loadingOverlay = document.getElementById('session-loading-overlay');
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+    // Re-fit terminal now that overlay is gone and full layout is visible
+    if (window.wingmanTerminal && window.wingmanTerminal.fitAddon) {
+      requestAnimationFrame(() => window.wingmanTerminal.fitAddon.fit());
+    }
     loadSessionData(e.detail.sessionId);
   });
 

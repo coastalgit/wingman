@@ -41,7 +41,8 @@ class SessionManager {
     if (!fs.existsSync(this.configPath)) {
       fs.writeFileSync(this.configPath, JSON.stringify({
         templates: {
-          default: '# Project Context\n\n## Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n',
+          default: '# Session Context\n\nEnsure you load your CLAUDE.md\n\n## Project Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n',
+          seshmemLoader: '# Session Memory Loader\n\nTo restore context from a previous session, run the following in your Claude Code terminal:\n\n```\n/seshmem:load\n```\n\n## Load Options\n- `/seshmem:load` — loads the most recent checkpoint\n- `/seshmem:load 3` — loads the last 3 checkpoints (shows progression)\n- `/seshmem:load <filename>` — loads a specific checkpoint by name (without .md)\n\n## Extra Seshmem Load Arguments\n> Add any additional context or instructions for the session memory load here.\n',
         },
         settings: {},
       }, null, 2), 'utf-8');
@@ -170,12 +171,20 @@ class SessionManager {
     try { return fs.readFileSync(this.promptPath, 'utf-8'); } catch { return ''; }
   }
 
-  saveContext(text) {
+  // saveContext writes to the shared file (for /ccc to read) AND persists per-session
+  saveContext(sessionId, text) {
     fs.writeFileSync(this.contextPath, text, 'utf-8');
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.contextText = text;
+      this.saveSessionFile(sessionId);
+    }
   }
 
-  loadContext() {
-    try { return fs.readFileSync(this.contextPath, 'utf-8'); } catch { return ''; }
+  // loadContext returns per-session context (not the shared file)
+  loadContext(sessionId) {
+    const session = this.sessions.get(sessionId);
+    return (session && session.contextText) || '';
   }
 
   // ─── Config ─────────────────────────────────────────
@@ -203,6 +212,7 @@ class SessionManager {
       createdAt: session.createdAt,
       closed: session.closed,
       promptHistory: session.promptHistory || [],
+      contextText: session.contextText || '',
     };
     const filePath = this.getSessionFilePath(sessionId);
     const tmpFile = filePath + '.tmp';

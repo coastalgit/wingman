@@ -23,7 +23,9 @@
       "Bash(sed:*)",
       "WebFetch(domain:github.com)",
       "Bash(cp:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "WebFetch(domain:tweakcn.com)",
+      "WebFetch(domain:docs.anthropic.com)"
     ],
     "deny": []
   }
