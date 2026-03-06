@@ -166,16 +166,16 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
 app.get('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  res.json({ text: sessionManager.loadContext() });
+  res.json({ text: sessionManager.loadContext(req.params.id) });
 });
 
-// REST API: Send context — save to shared file, inject /ccc into PTY
+// REST API: Send context — save to shared file + per-session, inject /ccc into PTY
 app.post('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const text = (req.body && req.body.text) || '';
-  sessionManager.saveContext(text);
+  sessionManager.saveContext(req.params.id, text);
 
   if (session.ptyProcess) {
     session.ptyProcess.write('\x15/ccc');
@@ -303,11 +303,11 @@ function gracefulShutdown() {
   // Release PID lock
   releaseLock(lockPath);
 
-  // Close WebSocket connections before shutting down HTTP server
+  // Terminate all WebSocket connections and stop accepting new HTTP connections
   wss.clients.forEach((ws) => ws.terminate());
-  server.close(() => process.exit(0));
-  // Force exit if server.close() stalls (e.g. open connections)
-  setTimeout(() => process.exit(0), 500).unref();
+  server.close();
+  // Force exit after brief delay — node-pty cleanup can keep the event loop alive
+  setTimeout(() => process.exit(0), 300);
 }
 
 wss.on('connection', (ws) => {

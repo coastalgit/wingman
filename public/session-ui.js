@@ -21,6 +21,7 @@
   const historyListEl = document.getElementById('historyList');
   const historySearchEl = document.getElementById('historySearch');
 
+  const templateSelectEl = document.getElementById('templateSelect');
   const stopSessionBtn = document.getElementById('stopSessionBtn');
   const statusMessageEl = document.getElementById('statusMessage');
   const toastContainerEl = document.getElementById('toastContainer');
@@ -63,6 +64,38 @@
     statusMessageEl.textContent = msg;
     if (duration) setTimeout(() => { statusMessageEl.textContent = 'Ready'; }, duration);
   }
+
+  // ─── Templates ──────────────────────────────────────
+
+  fetch('/api/config')
+    .then(r => r.json())
+    .then(config => {
+      const templates = config && config.templates ? config.templates : {};
+      Object.keys(templates).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        templateSelectEl.appendChild(opt);
+      });
+    })
+    .catch(() => {});
+
+  templateSelectEl.addEventListener('change', () => {
+    const name = templateSelectEl.value;
+    if (!name) return;
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(config => {
+        const text = config && config.templates && config.templates[name];
+        if (text) {
+          contextEditorEl.value = text;
+          renderContextPreview();
+          updateContextCounts();
+        }
+        templateSelectEl.value = '';
+      })
+      .catch(() => {});
+  });
 
   // ─── Context ────────────────────────────────────────
 
@@ -112,8 +145,7 @@
         body: JSON.stringify({ text: contextEditorEl.value }),
       });
       if (res.ok) {
-        showToast('Context saved & /ccc sent to terminal', 'success');
-        setStatus('Ready');
+        setStatus('/ccc sent', 2000);
       } else {
         showToast('Failed to send context', 'info');
         setStatus('Ready');
@@ -160,9 +192,7 @@
           activeHistoryId = data.entry.id;
         }
         renderHistory(historySearchEl.value);
-
-        showToast('Prompt saved & /ccp sent to terminal', 'success');
-        setStatus('Ready');
+        setStatus('/ccp sent', 2000);
       } else {
         showToast('Failed to send prompt', 'info');
         setStatus('Ready');
@@ -338,12 +368,13 @@
   async function loadSessionData(sid) {
     sessionId = sid;
 
-    // Enable UI now that we have a session
+    // Enable UI now that terminal is connected
     sendContextBtn.disabled = false;
     sendPromptBtn.disabled = false;
     clearPromptBtn.disabled = false;
     contextEditorEl.disabled = false;
     promptEditorEl.disabled = false;
+    templateSelectEl.disabled = false;
     stopSessionBtn.disabled = false;
 
     // Start with clean editors — shared files belong to whoever last sent,
@@ -385,6 +416,10 @@
     if (overlay) overlay.classList.remove('hidden');
     sendContextBtn.disabled = true;
     sendPromptBtn.disabled = true;
+    clearPromptBtn.disabled = true;
+    contextEditorEl.disabled = true;
+    promptEditorEl.disabled = true;
+    templateSelectEl.disabled = true;
     stopSessionBtn.disabled = true;
   });
 
@@ -406,10 +441,6 @@
   window.addEventListener('wingman-session-ready', (e) => {
     loadSessionData(e.detail.sessionId);
   });
-
-  if (window.wingmanTerminal && window.wingmanTerminal.sessionId) {
-    loadSessionData(window.wingmanTerminal.sessionId);
-  }
 
   setStatus('Ready');
 })();
