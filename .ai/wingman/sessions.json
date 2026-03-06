@@ -1,0 +1,52 @@
+[
+  {
+    "id": "04dd6407-6a24-4464-808c-5ad4438b346f",
+    "createdAt": "2026-03-04T19:07:23.276Z",
+    "closed": true
+  },
+  {
+    "id": "7daf7cac-9464-47b3-ac77-56564e597d6d",
+    "createdAt": "2026-03-04T19:09:48.977Z",
+    "closed": true
+  },
+  {
+    "id": "772ed4b4-62ce-4557-9650-1c1107200b8a",
+    "createdAt": "2026-03-04T19:11:10.537Z",
+    "closed": true
+  },
+  {
+    "id": "4be975b3-3861-4e0a-9ba9-08e4a6450a47",
+    "createdAt": "2026-03-04T19:14:08.142Z",
+    "closed": true
+  },
+  {
+    "id": "3412b698-3a85-4cb7-8a54-99013a69a2eb",
+    "createdAt": "2026-03-04T19:15:07.123Z",
+    "closed": true
+  },
+  {
+    "id": "03ad420f-f437-425e-80a2-8deb6c7111d8",
+    "createdAt": "2026-03-04T19:19:07.154Z",
+    "closed": true
+  },
+  {
+    "id": "ac49fe5a-3191-4c41-b71a-6b1c2509eea3",
+    "createdAt": "2026-03-04T20:12:23.507Z",
+    "closed": true
+  },
+  {
+    "id": "a1ac8342-b568-4b9a-8b7d-7b7df18c61e2",
+    "createdAt": "2026-03-04T21:39:42.705Z",
+    "closed": true
+  },
+  {
+    "id": "c959eced-6af4-4d44-abb3-04f615ec5ab0",
+    "createdAt": "2026-03-04T22:05:01.833Z",
+    "closed": false
+  },
+  {
+    "id": "5b999234-32e1-4252-82e6-cfa6a977bf5a",
+    "createdAt": "2026-03-04T22:07:13.265Z",
+    "closed": false
+  }
+]

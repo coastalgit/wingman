@@ -2,92 +2,44 @@
 
 ## Overview
 
-Wingman v2 replaces the Flutter desktop app with a Node.js web UI for Claude Code terminal sessions. The roadmap validates the core PTY-to-browser pipe first (Phase 1), then layers session management (Phase 2), multi-session orchestration with Mission Control and process lifecycle (Phase 3), and finally npx distribution packaging (Phase 4). Each phase delivers a coherent, testable capability that builds on the previous.
+Wingman v2 replaces the Flutter desktop app with a Node.js web UI for Claude Code terminal sessions. Phases 1-4 built the terminal pipe, session management, Mission Control, and distribution. Phase 5 brings back the original Wingman session UI (prompt composer, context editor, history) from the web demo (commit 84f042b), with the xterm.js terminal embedded in the bottom third.
 
 ## Phases
-
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
-
-Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Terminal Pipe PoC** - Prove browser-to-Claude PTY pipe works end-to-end on Windows/WSL
 - [x] **Phase 2: Session Management** - Multiple sessions with reconnection, history replay, and graceful lifecycle
 - [x] **Phase 3: Mission Control** - Project-scoped launcher, process lifecycle enforcement, and manual mode fallback
 - [x] **Phase 4: Distribution** - npx-installable package with native addon support
+- [ ] **Phase 5: Session UI** - Restore the original Wingman session page (context/prompt/history) with embedded terminal
 
 ## Phase Details
 
-### Phase 1: Terminal Pipe PoC
-**Goal**: A developer can launch Wingman, see a Claude Code session in the browser, and interact with it exactly as they would in a terminal
-**Depends on**: Nothing (first phase)
-**Requirements**: POC-01, POC-02, POC-03, POC-04, POC-05, POC-06, POC-07, POC-08, POC-09
+### Phase 1-4: Complete
+See previous roadmap entries. All done.
+
+### Phase 5: Session UI with Prompt & Context
+**Goal**: The session page looks like the original Wingman web UI (commit 84f042b) — context tab with editor+preview, prompts tab with history+compose — but with no session sidebar and with the xterm.js terminal in the bottom third. Save prompt → file to disk → `/ccp` auto-injected. Save context → file to disk → `/ccc` auto-injected.
+**Depends on**: Phase 4
+**Requirements**: SP-01..05, CTX-01..07, PMT-01..10, FILE-01..03, API-01..05
 **Success Criteria** (what must be TRUE):
-  1. Running `node server.js` starts a server and opens a browser window with a terminal UI
-  2. Claude Code output streams into the browser terminal in real time with correct ANSI rendering (colours, spinners, formatting)
-  3. User can type text and slash commands in the browser terminal and Claude Code receives and responds to them
-  4. Interactive prompts (y/n confirmations, plugin menus) work correctly through the browser terminal
-  5. Terminal history is scrollable in the browser window
+  1. Session page has the original two-tab layout (Session Context / Prompts) with terminal in the bottom third
+  2. Context tab: editor + live markdown preview, "Save context" writes to disk and injects `/ccc` into terminal
+  3. Prompts tab: history list on left, compose editor on right, "Save prompt" writes to disk and injects `/ccp` into terminal
+  4. Clicking a history entry loads it into the compose editor
+  5. All data (prompt, context, history) persists across tab close, reconnect, and server restart
 **Plans**: 3 plans
 
 Plans:
-- [x] 01-01-PLAN.md — Scaffold: package.json, server.js (HTTP+WS), public/ with xterm.js terminal UI
-- [x] 01-02-PLAN.md — PTY wiring: ConPTY spike + Claude Code spawn via Git Bash + WebSocket bridge
-- [x] 01-03-PLAN.md — Human verification: interactive test of all 9 POC requirements
-
-### Phase 2: Session Management
-**Goal**: A developer can run multiple Claude Code sessions, close browser tabs, reopen them, and reconnect to running sessions without losing history
-**Depends on**: Phase 1
-**Requirements**: SESS-01, SESS-02, SESS-03, SESS-04, SESS-05
-**Success Criteria** (what must be TRUE):
-  1. Each session has a unique ID persisted in `.ai/wingman/sessions.json`
-  2. Closing a browser tab and reopening the session URL reconnects to the same Claude process with full terminal history replayed
-  3. A session can be gracefully closed, which terminates its Claude child process and marks it as closed
-  4. Session metadata (session ID, project name, port) is visible in the browser window
-**Plans**: 2 plans
-
-Plans:
-- [x] 02-01-PLAN.md — SessionManager class: UUID generation, session tracking, terminal history buffer, file persistence
-- [x] 02-02-PLAN.md — Browser reconnection: handshake protocol, localStorage persistence, history replay, metadata display
-
-### Phase 3: Mission Control
-**Goal**: A developer manages all Claude Code sessions from a central launcher, with robust process lifecycle guarantees and a manual-mode fallback
-**Depends on**: Phase 2
-**Requirements**: MC-01, MC-02, MC-03, MC-04, MC-05, PROC-01, PROC-02, PROC-03, PROC-04, PROC-05, PROC-06, MAN-01, MAN-02, MAN-03, MAN-04
-**Success Criteria** (what must be TRUE):
-  1. `npx wingman` opens Mission Control in the browser showing all active sessions with their status (active, closed, reconnectable)
-  2. New Claude Code sessions can be launched from Mission Control, each opening in its own browser window
-  3. Only one Wingman instance runs per project (duplicate launch prints existing URL); stale PID locks are auto-cleaned
-  4. "Exit Wingman" button and Ctrl+C both gracefully shut down all sessions, clean up child processes, and remove the lock file
-  5. `npx wingman --manual` starts without spawning Claude processes; session files (`cprompt.md`, `ccontext.md`) are written to `.ai/wingman/` for use via `/ccc` and `/ccp` slash commands
-**Plans**: 3 plans
-
-Plans:
-- [x] 03-01-PLAN.md — Mission Control two-page architecture (dashboard + session routing + REST API + WebSocket broadcast)
-- [x] 03-02-PLAN.md — Process lifecycle (PID lock, stale cleanup, graceful shutdown, zombie prevention)
-- [x] 03-03-PLAN.md — Manual mode (--manual flag, cprompt.md/ccontext.md file writing, UI adaptation)
-
-### Phase 4: Distribution
-**Goal**: Any developer can run `npx wingman` in a project directory and it just works, with no manual build tool setup
-**Depends on**: Phase 3
-**Requirements**: DIST-01, DIST-02
-**Success Criteria** (what must be TRUE):
-  1. `npx wingman` installs and runs the package without requiring a global install or manual native build setup
-  2. node-pty native addon resolves correctly on Windows (prebuilt binaries or transparent compilation)
-**Plans**: 1 plan
-
-Plans:
-- [x] 04-01-PLAN.md — bin entry point, package.json bin/files/engines, Git Bash auto-detection, auto-port
+- [ ] 05-01-PLAN.md — Backend: per-session file storage, REST API endpoints, SessionManager extensions
+- [ ] 05-02-PLAN.md — Frontend: restore original session UI layout with embedded terminal
+- [ ] 05-03-PLAN.md — Integration: wire Save buttons to API, auto-inject `/ccp` and `/ccc` into PTY, verify end-to-end
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4
-
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Terminal Pipe PoC | 3/3 | ✅ Complete | 2026-03-04 |
-| 2. Session Management | 2/2 | ✅ Complete | 2026-03-04 |
-| 3. Mission Control | 3/3 | ✅ Complete | 2026-03-05 |
-| 4. Distribution | 1/1 | ✅ Complete | 2026-03-05 |
+| 1. Terminal Pipe PoC | 3/3 | Complete | 2026-03-04 |
+| 2. Session Management | 2/2 | Complete | 2026-03-04 |
+| 3. Mission Control | 3/3 | Complete | 2026-03-05 |
+| 4. Distribution | 1/1 | Complete | 2026-03-05 |
+| 5. Session UI | 0/3 | Pending | — |

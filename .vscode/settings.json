@@ -9,5 +9,6 @@
     "source.fixAll": "explicit"
   },
   "dart.openDevTools": "flutter",
-  "cmake.ignoreCMakeListsMissing": true
+  "cmake.ignoreCMakeListsMissing": true,
+  "roo-cline.vsCodeLmModelSelector": {}
 }

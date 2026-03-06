@@ -1,0 +1,14 @@
+{
+  "id": "b71764c5-e1d6-471b-8229-47062b63b9e9",
+  "description": "s10",
+  "createdAt": "2026-03-06T01:07:29.603Z",
+  "closed": false,
+  "promptHistory": [
+    {
+      "id": "1772759847262",
+      "text": "/usage",
+      "timestamp": "2026-03-06T01:17:27.262Z",
+      "tokens": 2
+    }
+  ]
+}

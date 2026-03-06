@@ -5,7 +5,25 @@
       "Bash(find:*)",
       "Bash(flutter analyze:*)",
       "Bash(/mnt/c/flutter/bin/flutter analyze)",
-      "Bash(dart analyze:*)"
+      "Bash(dart analyze:*)",
+      "Bash(git:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(date:*)",
+      "Skill(gsd:plan-phase)",
+      "WebSearch",
+      "Bash(tasklist:*)",
+      "Bash(tasklist.exe:*)",
+      "Bash(taskkill.exe:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(cmd:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(npx playwright:*)",
+      "Bash(netstat:*)",
+      "Bash(sed:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(cp:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

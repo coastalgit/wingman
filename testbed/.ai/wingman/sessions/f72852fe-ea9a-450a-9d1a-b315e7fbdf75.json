@@ -1,0 +1,20 @@
+{
+  "id": "f72852fe-ea9a-450a-9d1a-b315e7fbdf75",
+  "description": "s9",
+  "createdAt": "2026-03-06T00:05:54.380Z",
+  "closed": false,
+  "promptHistory": [
+    {
+      "id": "1772759237608",
+      "text": "What color is grass",
+      "timestamp": "2026-03-06T01:07:17.608Z",
+      "tokens": 5
+    },
+    {
+      "id": "1772759339979",
+      "text": "What color is sky",
+      "timestamp": "2026-03-06T01:08:59.979Z",
+      "tokens": 5
+    }
+  ]
+}

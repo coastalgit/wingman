@@ -1,143 +1,434 @@
+// server.js
+// node-pty: using node-pty (native build succeeded on Node 20 / Windows)
+//
+// ConPTY spike result (01-02 Task 1):
+//   Git Bash spawns cleanly via node-pty + ConPTY. Output is clean (no garbled binary).
+//   useConpty: false is NOT needed.
+//
+// Claude binary:
+//   Native installer binary at ~/.local/bin/claude.exe (v2.1.68).
+//   The native binary works correctly with node-pty + ConPTY on this system.
+//   No npm version present; native binary is used directly via `bash -c 'claude'`.
+
 const express = require('express');
+const { WebSocketServer } = require('ws');
+const http = require('http');
 const path = require('path');
-const { marked } = require('marked');
+const pty = require('node-pty');
+const SessionManager = require('./lib/session-manager.js');
+const { acquireLock, releaseLock } = require('./lib/process-lock.js');
+const { initManualMode } = require('./lib/manual-mode.js');
+
+// Port: --port CLI arg > PORT env var > 0 (OS auto-assigns a free port)
+// Using 0 means multiple Wingman instances in different directories never conflict.
+const portArg = (() => {
+  const i = process.argv.indexOf('--port');
+  return i !== -1 ? parseInt(process.argv[i + 1], 10) : null;
+})();
+const PORT = portArg || parseInt(process.env.PORT, 10) || 0;
+
+const lockPath = path.join(process.cwd(), '.ai', 'wingman', 'wingman.pid');
+const MANUAL_MODE = process.argv.includes('--manual');
+
+// Git Bash path detection — checks common Windows install locations.
+// Override with WINGMAN_BASH_PATH env var if your installation is non-standard.
+const fs = require('fs');
+
+function findGitBash() {
+  const pf   = process.env.PROGRAMFILES        || 'C:\\Program Files';
+  const pf86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
+  const local = process.env.LOCALAPPDATA        || '';
+
+  const candidates = [
+    process.env.WINGMAN_BASH_PATH,
+    path.join(pf,   'Git', 'bin', 'bash.exe'),
+    path.join(pf86, 'Git', 'bin', 'bash.exe'),
+    local && path.join(local, 'Programs', 'Git', 'bin', 'bash.exe'),
+  ].filter(Boolean);
+
+  return candidates.find(p => fs.existsSync(p)) || null;
+}
+
+const BASH_PATH = findGitBash();
+
+if (!BASH_PATH) {
+  console.error('Git Bash not found. Please install Git for Windows: https://git-scm.com/download/win');
+  console.error('Or set the WINGMAN_BASH_PATH environment variable to your bash.exe path.');
+  process.exit(1);
+}
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware
+// JSON body parsing for POST endpoints
 app.use(express.json());
+
+// --- Custom routes (BEFORE express.static to avoid index.html interception) ---
+
+// Mission Control dashboard at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'mission-control.html'));
+});
+
+// Session terminal page (UUID pattern only — prevents catching static file requests)
+app.get('/session/:id([0-9a-f-]{36})', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'session.html'));
+});
+
+// REST API: Server mode (normal vs manual)
+app.get('/api/mode', (req, res) => {
+  res.json({ manual: MANUAL_MODE });
+});
+
+// REST API: App version (from package.json)
+app.get('/api/version', (req, res) => {
+  res.json({ version: require('./package.json').version });
+});
+
+// REST API: List all sessions with status
+app.get('/api/sessions', (req, res) => {
+  res.json(sessionManager.getAllSessionsWithStatus());
+});
+
+// REST API: Create a new session (spawns PTY)
+app.post('/api/sessions', (req, res) => {
+  if (MANUAL_MODE) {
+    return res.status(400).json({ error: 'Manual mode active — no Claude sessions spawned', manual: true });
+  }
+
+  const description = (req.body && req.body.description) || 'Claude Code session';
+
+  // Register session metadata first (with no PTY yet), then spawn
+  const sessionId = sessionManager.spawnSession(null, { description });
+  spawnAndWirePty(sessionId);
+  broadcastSessionUpdate();
+
+  res.json({ sessionId, url: '/session/' + sessionId });
+});
+
+// REST API: Stop a session — kills the PTY but keeps the session restartable
+app.delete('/api/sessions/:id', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  if (session.ptyProcess) {
+    session.ptyProcess.kill();
+  }
+  sessionManager.detachPty(req.params.id);
+  broadcastSessionUpdate();
+  res.json({ status: 'stopped', sessionId: req.params.id });
+});
+
+// REST API: Permanently delete a stopped session (removes from registry and deletes file)
+app.delete('/api/sessions/:id/delete', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.ptyProcess) return res.status(400).json({ error: 'Session is active — stop it first' });
+  sessionManager.deleteSession(req.params.id);
+  broadcastSessionUpdate();
+  res.json({ status: 'deleted', sessionId: req.params.id });
+});
+
+// REST API: Get current prompt (shared file)
+app.get('/api/sessions/:id/prompt', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json({ text: sessionManager.loadPrompt() });
+});
+
+// REST API: Send prompt — save to shared file, append to session history, inject /ccp into PTY
+app.post('/api/sessions/:id/prompt', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const text = (req.body && req.body.text) || '';
+  sessionManager.savePrompt(text);
+
+  const entry = {
+    id: Date.now().toString(),
+    text,
+    timestamp: new Date().toISOString(),
+    tokens: Math.ceil(text.length / 4),
+  };
+  sessionManager.appendPromptHistory(req.params.id, entry);
+
+  if (session.ptyProcess) {
+    // Clear any existing input (Ctrl+U), type command, then submit (Enter)
+    // Small delay between text and Enter so Claude's TUI processes them separately
+    session.ptyProcess.write('\x15/ccp');
+    setTimeout(() => session.ptyProcess.write('\r'), 50);
+  }
+
+  res.json({ status: 'sent', entry });
+});
+
+// REST API: Get current context (shared file)
+app.get('/api/sessions/:id/context', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json({ text: sessionManager.loadContext() });
+});
+
+// REST API: Send context — save to shared file, inject /ccc into PTY
+app.post('/api/sessions/:id/context', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const text = (req.body && req.body.text) || '';
+  sessionManager.saveContext(text);
+
+  if (session.ptyProcess) {
+    session.ptyProcess.write('\x15/ccc');
+    setTimeout(() => session.ptyProcess.write('\r'), 50);
+  }
+
+  res.json({ status: 'sent' });
+});
+
+// REST API: Get prompt history for a session
+app.get('/api/sessions/:id/history', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json(sessionManager.loadPromptHistory(req.params.id));
+});
+
+// REST API: Get config (templates, settings)
+app.get('/api/config', (req, res) => {
+  res.json(sessionManager.loadConfig());
+});
+
+// REST API: Shutdown Wingman
+app.post('/api/shutdown', (req, res) => {
+  res.json({ status: 'shutting-down' });
+  gracefulShutdown();
+});
+
+// Static files AFTER custom routes (avoids index.html interception)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API: Render markdown to HTML (server-side rendering option)
-app.post('/api/render-markdown', (req, res) => {
-  const { markdown } = req.body;
-  if (!markdown) {
-    return res.json({ html: '' });
-  }
-  try {
-    const html = marked(markdown);
-    res.json({ html });
-  } catch (err) {
-    res.status(400).json({ error: 'Failed to render markdown' });
-  }
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+// Initialize SessionManager (singleton) on server startup
+const sessionManager = new SessionManager(process.cwd());
+
+// Manual mode: create prompt/context files, skip PTY spawning
+if (MANUAL_MODE) {
+  const { promptPath, contextPath } = initManualMode(sessionManager.sessionsDir);
+  console.log('Wingman started in manual mode. Session files:');
+  console.log('  Prompt:  ' + promptPath);
+  console.log('  Context: ' + contextPath);
+}
+
+// Broadcast session list update to all Mission Control clients
+function broadcastSessionUpdate() {
+  const sessions = sessionManager.getAllSessionsWithStatus();
+  const msg = JSON.stringify({ type: 'session-update', sessions });
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1 && client.clientType === 'mc') {
+      client.send(msg);
+    }
+  });
+}
+
+// Spawn a PTY and wire up onData/onExit for a session that already exists in SessionManager.
+// Used both for new sessions (POST /api/sessions) and reconnecting to reconnectable sessions.
+function spawnAndWirePty(sessionId) {
+  const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
+    name: 'xterm-256color',
+    cols: 120,
+    rows: 30,
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+    },
+  });
+
+  // Wire the new PTY into the existing session object
+  const session = sessionManager.getSession(sessionId);
+  session.ptyProcess = ptyProcess;
+  session.closed = false;
+  session.primaryWs = null; // reset primary on new PTY
+  sessionManager.updateSessionsFile();
+
+  // Buffer PTY output into history and broadcast to all connected terminal clients
+  ptyProcess.onData((data) => {
+    sessionManager.addToHistory(sessionId, data);
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1 && client.sessionId === sessionId) {
+        client.send(JSON.stringify({ type: 'output', data }));
+      }
+    });
+  });
+
+  // PTY exited naturally (e.g. user typed 'exit') — detach but keep session reconnectable
+  ptyProcess.onExit(({ exitCode, signal }) => {
+    console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
+    sessionManager.detachPty(sessionId);
+    broadcastSessionUpdate();
+    wss.clients.forEach((client) => {
+      if (client.readyState === 1 && client.sessionId === sessionId) {
+        client.send(JSON.stringify({ type: 'session-ended', sessionId }));
+      }
+    });
+  });
+
+  return ptyProcess;
+}
+
+// Graceful shutdown: broadcast, kill PTYs (leave sessions reconnectable), release lock, close server
+let shuttingDown = false;
+function gracefulShutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('\nShutting down...');
+
+  // Broadcast shutdown to all WebSocket clients
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(JSON.stringify({ type: 'shutdown' }));
+    }
+  });
+
+  // Kill active PTY processes — use detachPty so sessions remain reconnectable on next start
+  sessionManager.sessions.forEach((session, sessionId) => {
+    if (session.ptyProcess) {
+      session.ptyProcess.kill();
+      sessionManager.detachPty(sessionId);
+    }
+  });
+
+  // Release PID lock
+  releaseLock(lockPath);
+
+  // Close WebSocket connections before shutting down HTTP server
+  wss.clients.forEach((ws) => ws.terminate());
+  server.close(() => process.exit(0));
+  // Force exit if server.close() stalls (e.g. open connections)
+  setTimeout(() => process.exit(0), 500).unref();
+}
+
+wss.on('connection', (ws) => {
+  let sessionId = null;
+
+  ws.on('message', (rawMsg) => {
+    try {
+      const msg = JSON.parse(rawMsg.toString());
+
+      // Mission Control client identification
+      if (msg.type === 'mc-connect') {
+        ws.clientType = 'mc';
+        ws.send(JSON.stringify({
+          type: 'session-update',
+          sessions: sessionManager.getAllSessionsWithStatus(),
+        }));
+        return;
+      }
+
+      // Handshake: client connects to an existing session
+      if (msg.type === 'handshake') {
+        sessionId = msg.sessionId || null;
+
+        if (sessionId && sessionManager.getSession(sessionId)) {
+          const session = sessionManager.getSession(sessionId);
+
+          // If reconnectable (PTY dead, not explicitly closed), spawn a fresh Claude process
+          if (!session.ptyProcess && !session.closed) {
+            console.log(`Session ${sessionId}: reconnecting — spawning new PTY`);
+            spawnAndWirePty(sessionId);
+            broadcastSessionUpdate();
+          }
+
+          // Tag this WebSocket for PTY output broadcasting
+          ws.sessionId = sessionId;
+
+          // First client to connect to this session controls PTY resize
+          if (!session.primaryWs) {
+            session.primaryWs = ws;
+            ws.isPrimary = true;
+          }
+
+          // Always replay full history — xterm.js processes all escape sequences in order
+          // and arrives at the correct terminal state. This gives every tab the same view.
+          const history = sessionManager.getHistory(sessionId);
+          const status = history.length > 0 ? 'resumed' : 'new';
+
+          console.log(`Client connected to session ${sessionId} (status: ${status}, primary: ${ws.isPrimary || false})`);
+          ws.send(JSON.stringify({
+            type: 'handshake-ack',
+            sessionId,
+            status,
+            description: session.description || 'Claude Code session',
+            createdAt: session.createdAt,
+            history,
+          }));
+        } else {
+          ws.send(JSON.stringify({
+            type: 'error',
+            message: 'Unknown session. Launch from Mission Control.',
+          }));
+        }
+      }
+
+      // Input: route to active session's PTY
+      if (msg.type === 'input') {
+        const session = sessionManager.getSession(sessionId);
+        if (session && session.ptyProcess) {
+          session.ptyProcess.write(msg.data);
+        }
+      }
+
+      // Resize: only the primary client controls PTY dimensions
+      // This prevents multiple tabs from fighting over the terminal size
+      if (msg.type === 'resize' && ws.isPrimary) {
+        const session = sessionManager.getSession(sessionId);
+        if (session && session.ptyProcess) {
+          session.ptyProcess.resize(msg.cols, msg.rows);
+        }
+      }
+    } catch (e) {
+      console.error('Bad message:', e);
+    }
+  });
+
+  ws.on('close', () => {
+    // If primary client disconnected, clear so next connection can take over
+    if (ws.isPrimary && sessionId) {
+      const session = sessionManager.getSession(sessionId);
+      if (session && session.primaryWs === ws) {
+        session.primaryWs = null;
+      }
+    }
+    // Broadcast to MC so session list stays current (e.g. after /exit or tab close)
+    if (sessionId) {
+      broadcastSessionUpdate();
+    }
+    console.log('Client disconnected');
+  });
+
+  ws.on('error', (err) => console.error('WebSocket error:', err));
 });
 
-// API: Mock sessions data
-app.get('/api/sessions', (req, res) => {
-  res.json([
-    {
-      id: 'session-1',
-      name: 'Auth refactor',
-      project: '~/projects/saas-app',
-      lastActive: '2 min ago',
-      promptCount: 12,
-    },
-    {
-      id: 'session-2',
-      name: 'API endpoints',
-      project: '~/projects/saas-app',
-      lastActive: '15 min ago',
-      promptCount: 8,
-    },
-    {
-      id: 'session-3',
-      name: 'DB migrations',
-      project: '~/projects/saas-app',
-      lastActive: '1 hr ago',
-      promptCount: 5,
-    },
-    {
-      id: 'session-4',
-      name: 'Frontend polish',
-      project: '~/projects/landing-page',
-      lastActive: '3 hrs ago',
-      promptCount: 22,
-    },
-    {
-      id: 'session-5',
-      name: 'Test coverage',
-      project: '~/projects/saas-app',
-      lastActive: 'Yesterday',
-      promptCount: 17,
-    },
-  ]);
+server.listen(PORT, () => {
+  const actualPort = server.address().port;
+
+  // Acquire PID lock now that we know the actual port (PORT may have been 0)
+  acquireLock(lockPath, actualPort);
+
+  const modeLabel = MANUAL_MODE ? 'Wingman (manual mode)' : 'Wingman';
+  console.log(`${modeLabel} running at http://localhost:${actualPort}`);
+  import('open').then(({ default: open }) => open(`http://localhost:${actualPort}`));
 });
 
-// API: Mock prompt history
-app.get('/api/prompts/:sessionId', (req, res) => {
-  const prompts = {
-    'session-1': [
-      {
-        id: 'p1',
-        text: 'Refactor the auth middleware to use JWT verification with RS256 algorithm. The current implementation uses HS256 and we need to support key rotation.',
-        timestamp: '10:42 AM',
-        tokens: 342,
-      },
-      {
-        id: 'p2',
-        text: 'Add rate limiting to the login endpoint. Use a sliding window approach with Redis, limit to 5 attempts per minute per IP address.',
-        timestamp: '10:38 AM',
-        tokens: 287,
-      },
-      {
-        id: 'p3',
-        text: 'Create a refresh token rotation mechanism. When a refresh token is used, invalidate the old one and issue a new pair. Store the token family in the database.',
-        timestamp: '10:31 AM',
-        tokens: 456,
-      },
-      {
-        id: 'p4',
-        text: 'Write unit tests for the new JWT verification middleware. Cover: valid token, expired token, wrong algorithm, missing claims, malformed token.',
-        timestamp: '10:25 AM',
-        tokens: 198,
-      },
-    ],
-    'session-2': [
-      {
-        id: 'p5',
-        text: 'Create a REST API endpoint for user profile updates. Support partial updates with PATCH, validate email format, and emit a UserUpdated event.',
-        timestamp: '10:15 AM',
-        tokens: 521,
-      },
-      {
-        id: 'p6',
-        text: 'Add pagination to the GET /api/users endpoint. Use cursor-based pagination with a default page size of 25. Include total count in response headers.',
-        timestamp: '10:08 AM',
-        tokens: 315,
-      },
-    ],
-    'session-3': [
-      {
-        id: 'p7',
-        text: 'Generate a migration to add a `preferences` JSONB column to the users table with a default empty object. Include rollback.',
-        timestamp: '9:45 AM',
-        tokens: 178,
-      },
-    ],
-    'session-4': [
-      {
-        id: 'p8',
-        text: 'Implement a smooth scroll-to-section navigation for the landing page. Add active state highlighting to the nav links based on scroll position.',
-        timestamp: 'Yesterday 4:30 PM',
-        tokens: 402,
-      },
-    ],
-    'session-5': [
-      {
-        id: 'p9',
-        text: 'Generate test cases for the payment processing module. Cover Stripe webhook handling, idempotency, and partial refunds.',
-        timestamp: 'Yesterday 2:15 PM',
-        tokens: 623,
-      },
-    ],
-  };
-  res.json(prompts[req.params.sessionId] || []);
-});
+process.on('SIGINT', () => gracefulShutdown());
 
-app.listen(PORT, () => {
-  console.log(`\n  Wingman Web Demo`);
-  console.log(`  ────────────────────────`);
-  console.log(`  Running at http://localhost:${PORT}`);
-  console.log(`  Press Ctrl+C to stop\n`);
+// Safety net: release lock on any exit (sync-only, no async work)
+process.on('exit', () => releaseLock(lockPath));
+
+// Prevent PID file from persisting on uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  gracefulShutdown();
 });

@@ -79,6 +79,11 @@ app.get('/api/mode', (req, res) => {
   res.json({ manual: MANUAL_MODE });
 });
 
+// REST API: App version (from package.json)
+app.get('/api/version', (req, res) => {
+  res.json({ version: require('./package.json').version });
+});
+
 // REST API: List all sessions with status
 app.get('/api/sessions', (req, res) => {
   res.json(sessionManager.getAllSessionsWithStatus());
@@ -112,6 +117,84 @@ app.delete('/api/sessions/:id', (req, res) => {
   sessionManager.detachPty(req.params.id);
   broadcastSessionUpdate();
   res.json({ status: 'stopped', sessionId: req.params.id });
+});
+
+// REST API: Permanently delete a stopped session (removes from registry and deletes file)
+app.delete('/api/sessions/:id/delete', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (session.ptyProcess) return res.status(400).json({ error: 'Session is active — stop it first' });
+  sessionManager.deleteSession(req.params.id);
+  broadcastSessionUpdate();
+  res.json({ status: 'deleted', sessionId: req.params.id });
+});
+
+// REST API: Get current prompt (shared file)
+app.get('/api/sessions/:id/prompt', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json({ text: sessionManager.loadPrompt() });
+});
+
+// REST API: Send prompt — save to shared file, append to session history, inject /ccp into PTY
+app.post('/api/sessions/:id/prompt', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const text = (req.body && req.body.text) || '';
+  sessionManager.savePrompt(text);
+
+  const entry = {
+    id: Date.now().toString(),
+    text,
+    timestamp: new Date().toISOString(),
+    tokens: Math.ceil(text.length / 4),
+  };
+  sessionManager.appendPromptHistory(req.params.id, entry);
+
+  if (session.ptyProcess) {
+    // Clear any existing input (Ctrl+U), type command, then submit (Enter)
+    // Small delay between text and Enter so Claude's TUI processes them separately
+    session.ptyProcess.write('\x15/ccp');
+    setTimeout(() => session.ptyProcess.write('\r'), 50);
+  }
+
+  res.json({ status: 'sent', entry });
+});
+
+// REST API: Get current context (shared file)
+app.get('/api/sessions/:id/context', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json({ text: sessionManager.loadContext() });
+});
+
+// REST API: Send context — save to shared file, inject /ccc into PTY
+app.post('/api/sessions/:id/context', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const text = (req.body && req.body.text) || '';
+  sessionManager.saveContext(text);
+
+  if (session.ptyProcess) {
+    session.ptyProcess.write('\x15/ccc');
+    setTimeout(() => session.ptyProcess.write('\r'), 50);
+  }
+
+  res.json({ status: 'sent' });
+});
+
+// REST API: Get prompt history for a session
+app.get('/api/sessions/:id/history', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json(sessionManager.loadPromptHistory(req.params.id));
+});
+
+// REST API: Get config (templates, settings)
+app.get('/api/config', (req, res) => {
+  res.json(sessionManager.loadConfig());
 });
 
 // REST API: Shutdown Wingman

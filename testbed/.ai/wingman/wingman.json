@@ -1,0 +1,6 @@
+{
+  "templates": {
+    "default": "# Project Context\n\n## Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n"
+  },
+  "settings": {}
+}

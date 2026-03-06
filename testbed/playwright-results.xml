@@ -1,0 +1,216 @@
+<testsuites id="" name="" tests="100" failures="0" skipped="0" errors="0" time="104.974293">
+<testsuite name="01-app-load.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="11" failures="0" skipped="0" time="9.529" errors="0">
+<testcase name="App loads correctly › page title is Wingman" classname="01-app-load.spec.ts" time="1.191">
+</testcase>
+<testcase name="App loads correctly › header shows brand name" classname="01-app-load.spec.ts" time="0.744">
+</testcase>
+<testcase name="App loads correctly › session list renders with sessions" classname="01-app-load.spec.ts" time="2.311">
+</testcase>
+<testcase name="App loads correctly › first session &quot;Auth refactor&quot; is active on load" classname="01-app-load.spec.ts" time="0.7">
+</testcase>
+<testcase name="App loads correctly › header shows active session name" classname="01-app-load.spec.ts" time="0.654">
+</testcase>
+<testcase name="App loads correctly › context panel is visible by default" classname="01-app-load.spec.ts" time="0.663">
+</testcase>
+<testcase name="App loads correctly › context tab is active in feature nav" classname="01-app-load.spec.ts" time="0.651">
+</testcase>
+<testcase name="App loads correctly › context editor is populated with session context" classname="01-app-load.spec.ts" time="0.607">
+</testcase>
+<testcase name="App loads correctly › status bar shows project path" classname="01-app-load.spec.ts" time="0.71">
+</testcase>
+<testcase name="App loads correctly › total prompts count is shown in sidebar" classname="01-app-load.spec.ts" time="0.658">
+</testcase>
+<testcase name="App loads correctly › save context button is hidden on load (editor is not dirty)" classname="01-app-load.spec.ts" time="0.64">
+</testcase>
+</testsuite>
+<testsuite name="02-session-switching.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="7" failures="0" skipped="0" time="7.322" errors="0">
+<testcase name="Session switching › clicking a different session marks it as active" classname="02-session-switching.spec.ts" time="2.675">
+</testcase>
+<testcase name="Session switching › clicking a session updates the header session name" classname="02-session-switching.spec.ts" time="0.67">
+</testcase>
+<testcase name="Session switching › clicking a session loads its context into the editor" classname="02-session-switching.spec.ts" time="0.675">
+</testcase>
+<testcase name="Session switching › switching sessions clears the prompt editor" classname="02-session-switching.spec.ts" time="0.697">
+</testcase>
+<testcase name="Session switching › switching sessions updates the status bar project path" classname="02-session-switching.spec.ts" time="0.827">
+</testcase>
+<testcase name="Session switching › switching sessions updates the history list" classname="02-session-switching.spec.ts" time="1.083">
+</testcase>
+<testcase name="Session switching › switching sessions hides the save context button" classname="02-session-switching.spec.ts" time="0.695">
+</testcase>
+</testsuite>
+<testsuite name="03-context-panel.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="15" failures="0" skipped="0" time="17.825" errors="0">
+<testcase name="Context panel › context editor accepts text input" classname="03-context-panel.spec.ts" time="0.68">
+</testcase>
+<testcase name="Context panel › typing in context editor shows live markdown preview" classname="03-context-panel.spec.ts" time="0.667">
+</testcase>
+<testcase name="Context panel › markdown bold text renders in preview" classname="03-context-panel.spec.ts" time="0.748">
+</testcase>
+<testcase name="Context panel › empty context editor shows placeholder preview" classname="03-context-panel.spec.ts" time="0.73">
+</testcase>
+<testcase name="Context panel › char count updates as text is typed" classname="03-context-panel.spec.ts" time="0.707">
+</testcase>
+<testcase name="Context panel › token count updates as text is typed" classname="03-context-panel.spec.ts" time="0.654">
+</testcase>
+<testcase name="Context panel › save button is hidden when context is clean" classname="03-context-panel.spec.ts" time="0.647">
+</testcase>
+<testcase name="Context panel › save button appears after editing context" classname="03-context-panel.spec.ts" time="0.655">
+</testcase>
+<testcase name="Context panel › clicking save context button shows success toast" classname="03-context-panel.spec.ts" time="4.711">
+</testcase>
+<testcase name="Context panel › clicking save context hides the save button" classname="03-context-panel.spec.ts" time="1.251">
+</testcase>
+<testcase name="Context panel › toast disappears after ~2.5 seconds" classname="03-context-panel.spec.ts" time="3.596">
+</testcase>
+<testcase name="Context panel › template button is visible in context editor toolbar" classname="03-context-panel.spec.ts" time="0.635">
+</testcase>
+<testcase name="Context panel › clicking Template button fills the editor with template content" classname="03-context-panel.spec.ts" time="0.701">
+</testcase>
+<testcase name="Context panel › clicking Template button shows a toast notification" classname="03-context-panel.spec.ts" time="0.712">
+</testcase>
+<testcase name="Context panel › template button renders markdown preview after insertion" classname="03-context-panel.spec.ts" time="0.731">
+</testcase>
+</testsuite>
+<testsuite name="04-prompts-panel.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="21" failures="0" skipped="0" time="21.277" errors="0">
+<testcase name="Prompts panel › clicking Prompts tab shows the prompts panel" classname="04-prompts-panel.spec.ts" time="0.674">
+</testcase>
+<testcase name="Prompts panel › Prompts tab becomes active in feature nav" classname="04-prompts-panel.spec.ts" time="0.705">
+</testcase>
+<testcase name="Prompts panel › switching back to context tab shows context panel" classname="04-prompts-panel.spec.ts" time="0.821">
+</testcase>
+<testcase name="Prompts panel › history list renders prompt items for active session" classname="04-prompts-panel.spec.ts" time="0.678">
+</testcase>
+<testcase name="Prompts panel › history items display prompt text" classname="04-prompts-panel.spec.ts" time="0.658">
+</testcase>
+<testcase name="Prompts panel › prompt editor is visible and accepts text" classname="04-prompts-panel.spec.ts" time="0.987">
+</testcase>
+<testcase name="Prompts panel › prompt char count updates as text is typed" classname="04-prompts-panel.spec.ts" time="0.753">
+</testcase>
+<testcase name="Prompts panel › saving an empty prompt shows an info toast" classname="04-prompts-panel.spec.ts" time="0.829">
+</testcase>
+<testcase name="Prompts panel › saving a prompt adds it to the history list" classname="04-prompts-panel.spec.ts" time="4.284">
+</testcase>
+<testcase name="Prompts panel › saving a prompt shows a success toast" classname="04-prompts-panel.spec.ts" time="1.646">
+</testcase>
+<testcase name="Prompts panel › saving a prompt clears the editor" classname="04-prompts-panel.spec.ts" time="0.765">
+</testcase>
+<testcase name="Prompts panel › new prompt appears at top of history list" classname="04-prompts-panel.spec.ts" time="1.658">
+</testcase>
+<testcase name="Prompts panel › clicking a history item loads text into the prompt editor" classname="04-prompts-panel.spec.ts" time="0.757">
+</testcase>
+<testcase name="Prompts panel › clicking a history item shows a toast notification" classname="04-prompts-panel.spec.ts" time="0.791">
+</testcase>
+<testcase name="Prompts panel › clicking a history item marks it as active" classname="04-prompts-panel.spec.ts" time="0.848">
+</testcase>
+<testcase name="Prompts panel › clear button empties the prompt editor" classname="04-prompts-panel.spec.ts" time="0.786">
+</testcase>
+<testcase name="Prompts panel › clear button resets the char count to 0" classname="04-prompts-panel.spec.ts" time="0.758">
+</testcase>
+<testcase name="Prompts panel › search input is visible in history pane" classname="04-prompts-panel.spec.ts" time="0.709">
+</testcase>
+<testcase name="Prompts panel › typing in search filters the history list" classname="04-prompts-panel.spec.ts" time="0.73">
+</testcase>
+<testcase name="Prompts panel › search with no matches shows empty state message" classname="04-prompts-panel.spec.ts" time="0.706">
+</testcase>
+<testcase name="Prompts panel › clearing search text restores all history items" classname="04-prompts-panel.spec.ts" time="0.734">
+</testcase>
+</testsuite>
+<testsuite name="05-new-session.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="17" failures="0" skipped="0" time="15.536" errors="0">
+<testcase name="New session modal › + button is visible in sidebar header" classname="05-new-session.spec.ts" time="0.687">
+</testcase>
+<testcase name="New session modal › clicking + opens the New Session modal" classname="05-new-session.spec.ts" time="0.74">
+</testcase>
+<testcase name="New session modal › New Session modal has a name input field" classname="05-new-session.spec.ts" time="0.776">
+</testcase>
+<testcase name="New session modal › Create button is disabled when name is empty" classname="05-new-session.spec.ts" time="0.758">
+</testcase>
+<testcase name="New session modal › Create button enables when name is typed" classname="05-new-session.spec.ts" time="0.748">
+</testcase>
+<testcase name="New session modal › Create button disables again when name is cleared" classname="05-new-session.spec.ts" time="0.869">
+</testcase>
+<testcase name="New session modal › new session modal cannot be dismissed by clicking backdrop (strict modal)" classname="05-new-session.spec.ts" time="0.882">
+</testcase>
+<testcase name="New session modal › new session modal cannot be dismissed by Escape key (strict modal)" classname="05-new-session.spec.ts" time="0.76">
+</testcase>
+<testcase name="New session modal › Cancel button closes the modal" classname="05-new-session.spec.ts" time="1.086">
+</testcase>
+<testcase name="New session modal › X close button closes the modal" classname="05-new-session.spec.ts" time="1.121">
+</testcase>
+<testcase name="New session modal › creating a session adds it to the session list" classname="05-new-session.spec.ts" time="1.039">
+</testcase>
+<testcase name="New session modal › new session appears at top of session list" classname="05-new-session.spec.ts" time="1.087">
+</testcase>
+<testcase name="New session modal › new session becomes the active session" classname="05-new-session.spec.ts" time="1.087">
+</testcase>
+<testcase name="New session modal › creating a session shows success toast" classname="05-new-session.spec.ts" time="1.041">
+</testcase>
+<testcase name="New session modal › creating a session closes the modal" classname="05-new-session.spec.ts" time="1.046">
+</testcase>
+<testcase name="New session modal › new session pre-populates context editor with template" classname="05-new-session.spec.ts" time="1.12">
+</testcase>
+<testcase name="New session modal › pressing Enter in name field triggers create" classname="05-new-session.spec.ts" time="0.689">
+</testcase>
+</testsuite>
+<testsuite name="06-modals.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="21" failures="0" skipped="0" time="20.286" errors="0">
+<testcase name="Help and Settings modals › hamburger menu button is visible in header" classname="06-modals.spec.ts" time="0.638">
+</testcase>
+<testcase name="Help and Settings modals › clicking menu button opens the dropdown menu" classname="06-modals.spec.ts" time="0.695">
+</testcase>
+<testcase name="Help and Settings modals › clicking elsewhere closes the dropdown menu" classname="06-modals.spec.ts" time="0.732">
+</testcase>
+<testcase name="Help and Settings modals › menu shows Settings and Help items" classname="06-modals.spec.ts" time="0.693">
+</testcase>
+<testcase name="Help and Settings modals › clicking Help menu item opens the Help modal" classname="06-modals.spec.ts" time="1.365">
+</testcase>
+<testcase name="Help and Settings modals › Help modal shows &quot;Getting Started&quot; title" classname="06-modals.spec.ts" time="0.813">
+</testcase>
+<testcase name="Help and Settings modals › Help modal contains terminal commands section" classname="06-modals.spec.ts" time="1.257">
+</testcase>
+<testcase name="Help and Settings modals › Help modal contains keyboard shortcuts section" classname="06-modals.spec.ts" time="0.805">
+</testcase>
+<testcase name="Help and Settings modals › Help modal Close button closes the modal" classname="06-modals.spec.ts" time="1.1">
+</testcase>
+<testcase name="Help and Settings modals › Help modal X button closes the modal" classname="06-modals.spec.ts" time="1.219">
+</testcase>
+<testcase name="Help and Settings modals › Help modal closes when Escape key is pressed (non-strict)" classname="06-modals.spec.ts" time="0.76">
+</testcase>
+<testcase name="Help and Settings modals › Help modal closes when clicking the backdrop (non-strict)" classname="06-modals.spec.ts" time="0.864">
+</testcase>
+<testcase name="Help and Settings modals › clicking Settings menu item opens the Settings modal" classname="06-modals.spec.ts" time="1.231">
+</testcase>
+<testcase name="Help and Settings modals › Settings modal shows &quot;Settings&quot; title" classname="06-modals.spec.ts" time="0.813">
+</testcase>
+<testcase name="Help and Settings modals › Settings modal has font size selector" classname="06-modals.spec.ts" time="0.981">
+</testcase>
+<testcase name="Help and Settings modals › Settings modal has tab size selector" classname="06-modals.spec.ts" time="0.82">
+</testcase>
+<testcase name="Help and Settings modals › Settings modal Cancel button closes without saving" classname="06-modals.spec.ts" time="1.473">
+</testcase>
+<testcase name="Help and Settings modals › Settings modal cannot be dismissed by backdrop click (strict modal)" classname="06-modals.spec.ts" time="0.942">
+</testcase>
+<testcase name="Help and Settings modals › Settings modal cannot be dismissed by Escape key (strict modal)" classname="06-modals.spec.ts" time="0.853">
+</testcase>
+<testcase name="Help and Settings modals › saving settings closes the modal and shows toast" classname="06-modals.spec.ts" time="1.178">
+</testcase>
+<testcase name="Help and Settings modals › changing font size and saving applies it to textareas" classname="06-modals.spec.ts" time="1.054">
+</testcase>
+</testsuite>
+<testsuite name="07-keyboard-shortcuts.spec.ts" timestamp="2026-03-04T17:00:13.605Z" hostname="chromium" tests="8" failures="0" skipped="0" time="7.2" errors="0">
+<testcase name="Keyboard shortcuts › Ctrl+1 switches to Session Context panel" classname="07-keyboard-shortcuts.spec.ts" time="0.72">
+</testcase>
+<testcase name="Keyboard shortcuts › Ctrl+2 switches to Prompts panel" classname="07-keyboard-shortcuts.spec.ts" time="0.696">
+</testcase>
+<testcase name="Keyboard shortcuts › Ctrl+1 when already on context panel keeps context panel active" classname="07-keyboard-shortcuts.spec.ts" time="0.761">
+</testcase>
+<testcase name="Keyboard shortcuts › Ctrl+2 when already on prompts panel keeps prompts panel active" classname="07-keyboard-shortcuts.spec.ts" time="0.772">
+</testcase>
+<testcase name="Keyboard shortcuts › Ctrl+Enter saves the prompt when on prompts panel" classname="07-keyboard-shortcuts.spec.ts" time="1.604">
+</testcase>
+<testcase name="Keyboard shortcuts › Ctrl+Enter on empty prompt editor shows info toast" classname="07-keyboard-shortcuts.spec.ts" time="0.745">
+</testcase>
+<testcase name="Keyboard shortcuts › Ctrl+Enter does not save when on context panel" classname="07-keyboard-shortcuts.spec.ts" time="1.019">
+</testcase>
+<testcase name="Keyboard shortcuts › can toggle between panels multiple times with keyboard" classname="07-keyboard-shortcuts.spec.ts" time="0.883">
+</testcase>
+</testsuite>
+</testsuites>
