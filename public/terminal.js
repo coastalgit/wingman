@@ -85,9 +85,9 @@ ws.onmessage = (event) => {
     window.dispatchEvent(new CustomEvent("wingman-session-ended"));
   } else if (msg.type === "shutdown") {
     serverShuttingDown = true;
-    term.writeln("\r\n\x1b[31m[Wingman shutting down...]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Wingman shutting down...]\x1b[0m");
   } else if (msg.type === "error") {
-    term.writeln("\r\n\x1b[31m[Error: " + msg.message + "]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Error: " + msg.message + "]\x1b[0m");
   }
 };
 
@@ -122,9 +122,9 @@ ws.onopen = () => {
 
 ws.onclose = () => {
   if (serverShuttingDown) {
-    term.writeln("\r\n\x1b[31m[Wingman ended]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Wingman ended]\x1b[0m");
   } else {
-    term.writeln("\r\n\x1b[31m[Connection closed]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Connection closed]\x1b[0m");
   }
 };
 
