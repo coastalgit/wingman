@@ -402,7 +402,7 @@
           fileUploadResult.classList.remove('hidden');
           // Show the copy button beside the attach button
           attachCopyBtnEl.classList.remove('hidden');
-          attachCopyBtnEl.title = 'Copy: ' + result.path;
+          attachCopyBtnEl.dataset.path = result.path;
           showToast('File saved: ' + result.name, 'success');
         } else {
           showToast('Upload failed', 'info');
@@ -525,7 +525,7 @@
   function copyPathAndClose(filePath) {
     lastUploadedPath = filePath; // track for attach copy button
     attachCopyBtnEl.classList.remove('hidden');
-    attachCopyBtnEl.title = 'Copy: ' + filePath;
+    attachCopyBtnEl.dataset.path = filePath;
     navigator.clipboard.writeText(filePath).then(() => {
       showToast('Path copied: ' + filePath, 'success');
     }).catch(() => {
