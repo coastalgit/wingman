@@ -51,6 +51,22 @@
     </div>
   </div>
 
+  <!-- ─── Args Editor Modal ─────────────────────────── -->
+  <div id="args-modal" class="modal-overlay hidden">
+    <div class="modal-box args-modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="argsModalTitle">Session Arguments</span>
+        <button class="modal-close" id="args-close">✕</button>
+      </div>
+      <div class="modal-body args-modal-body" id="argsFlagsList"></div>
+      <div class="modal-footer">
+        <span class="args-status" id="argsStatus"></span>
+        <button class="btn" id="args-cancel">Cancel</button>
+        <button class="save-btn" id="args-save">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── Mode Banner (manual mode indicator) ─────────── -->
   <div id="mode-banner" class="mode-banner" style="display:none;"></div>
 

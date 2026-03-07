@@ -231,6 +231,89 @@ app.patch('/api/settings', (req, res) => {
   res.json({ status: 'ok', settings: config.settings });
 });
 
+// REST API: Parsed claude CLI flags (for args editor)
+let cachedClaudeFlags = null;
+
+function parseClaudeFlags(helpText) {
+  const flags = [];
+  const lines = helpText.split('\n');
+  let inOptions = false;
+  const skip = new Set([
+    '--help', '--version', '--print', '--output-format', '--input-format',
+    '--json-schema', '--max-budget-usd', '--include-partial-messages',
+    '--replay-user-messages', '--file', '--fallback-model', '--no-session-persistence',
+    '--session-id', '--from-pr', '--strict-mcp-config', '--tmux',
+    '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions',
+    '--chrome', '--no-chrome',
+  ]);
+
+  for (const line of lines) {
+    if (line.trim() === 'Options:') { inOptions = true; continue; }
+    if (/^Commands:/.test(line.trim())) break;
+    if (!inOptions || !/^\s{2,}-/.test(line)) continue;
+
+    const m = line.match(/^\s+(?:(-\w),\s+)?(--[\w-]+)(?:,\s+--[\w-]+)?(?:\s+(<[^>]+>|\[[^\]]+\]))?\s{2,}(.+)/);
+    if (!m) continue;
+
+    const long = m[2];
+    if (skip.has(long)) continue;
+
+    const short = m[1] || undefined;
+    const valueRaw = m[3] || undefined;
+    const value = valueRaw ? valueRaw.replace(/[<>\[\]]/g, '') : undefined;
+    const desc = m[4].trim();
+
+    let choices;
+    const cm = desc.match(/\(choices:\s*([^)]+)\)/);
+    if (cm) choices = cm[1].split(',').map(c => c.trim().replace(/"/g, ''));
+
+    flags.push({ long, short, value, choices, desc });
+  }
+  return flags;
+}
+
+app.get('/api/claude-flags', (req, res) => {
+  if (cachedClaudeFlags) return res.json(cachedClaudeFlags);
+  try {
+    // Use execFileSync to avoid cmd.exe shell wrapper on Windows
+    const helpText = require('child_process').execFileSync(BASH_PATH, ['-c', 'claude --help'], { encoding: 'utf8', timeout: 10000 });
+    cachedClaudeFlags = parseClaudeFlags(helpText);
+    res.json(cachedClaudeFlags);
+  } catch (err) {
+    console.error('Failed to parse claude --help:', err.message);
+    res.json([]);
+  }
+});
+
+// REST API: List files in a directory (for file browser)
+app.get('/api/files', (req, res) => {
+  const relPath = req.query.path || '.';
+  const absPath = path.resolve(process.cwd(), relPath);
+  const cwd = process.cwd().replace(/\\/g, '/');
+  const abs = absPath.replace(/\\/g, '/');
+
+  if (!abs.startsWith(cwd)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    const entries = fs.readdirSync(absPath, { withFileTypes: true });
+    const items = entries
+      .filter(e => !e.name.startsWith('.') && e.name !== 'node_modules')
+      .map(e => ({
+        name: e.name,
+        type: e.isDirectory() ? 'dir' : 'file',
+        path: path.relative(process.cwd(), path.join(absPath, e.name)).replace(/\\/g, '/'),
+      }))
+      .sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    res.json({ path: path.relative(process.cwd(), absPath).replace(/\\/g, '/') || '.', items });
+  } catch (err) {
+    res.status(404).json({ error: 'Directory not found' });
+  }
+});
+
 // REST API: Shutdown Wingman
 app.post('/api/shutdown', (req, res) => {
   res.json({ status: 'shutting-down' });
@@ -267,8 +350,30 @@ function broadcastSessionUpdate() {
 
 // Spawn a PTY and wire up onData/onExit for a session that already exists in SessionManager.
 // Used both for new sessions (POST /api/sessions) and reconnecting to reconnectable sessions.
+function buildClaudeCommand(session) {
+  const parts = ['claude'];
+  if (session.flags) {
+    if (session.flags.yolo) parts.push('--dangerously-skip-permissions');
+    if (session.flags.withChrome) parts.push('--chrome');
+    const args = session.flags.customArgs;
+    if (args && typeof args === 'object') {
+      for (const [flag, val] of Object.entries(args)) {
+        if (val === true) parts.push(flag);
+        else if (typeof val === 'string' && val.trim()) {
+          parts.push(flag, "'" + val.replace(/'/g, "'\\''") + "'");
+        }
+      }
+    }
+  }
+  return parts.join(' ');
+}
+
 function spawnAndWirePty(sessionId) {
-  const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
+  const session = sessionManager.getSession(sessionId);
+  const cmd = buildClaudeCommand(session);
+  console.log(`Session ${sessionId}: spawning: ${cmd}`);
+
+  const ptyProcess = pty.spawn(BASH_PATH, ['-c', cmd], {
     name: 'xterm-256color',
     cols: 120,
     rows: 30,
@@ -281,7 +386,6 @@ function spawnAndWirePty(sessionId) {
   });
 
   // Wire the new PTY into the existing session object
-  const session = sessionManager.getSession(sessionId);
   session.ptyProcess = ptyProcess;
   session.closed = false;
   session.primaryWs = null; // reset primary on new PTY
