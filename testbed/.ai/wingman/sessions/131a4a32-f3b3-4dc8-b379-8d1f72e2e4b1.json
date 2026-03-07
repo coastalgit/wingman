@@ -3,8 +3,22 @@
   "description": "S17",
   "createdAt": "2026-03-06T23:26:29.348Z",
   "closed": false,
-  "promptHistory": [],
-  "contextHistory": [],
-  "contextText": "",
+  "promptHistory": [
+    {
+      "id": "1772854853859",
+      "text": "Is delphi still used",
+      "timestamp": "2026-03-07T03:40:53.859Z",
+      "tokens": 5
+    }
+  ],
+  "contextHistory": [
+    {
+      "id": "1772854837416",
+      "text": "We aere talking about software languages",
+      "timestamp": "2026-03-07T03:40:37.416Z",
+      "tokens": 10
+    }
+  ],
+  "contextText": "We aere talking about software languages",
   "flags": {}
 }
