@@ -584,6 +584,7 @@
   .context-hint-bar {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     padding: 7px 16px;
     background: oklch(0.45 0.08 80 / 0.12);
