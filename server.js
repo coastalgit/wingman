@@ -81,7 +81,8 @@ app.get('/api/mode', (req, res) => {
 
 // REST API: App version (from package.json)
 app.get('/api/version', (req, res) => {
-  res.json({ version: require('./package.json').version });
+  const pkg = require('./package.json');
+  res.json({ version: pkg.version, build: pkg.build || 0 });
 });
 
 // REST API: List all sessions with status
@@ -168,7 +169,7 @@ app.get('/api/sessions/:id/context', (req, res) => {
   res.json({ text: sessionManager.loadContext(req.params.id) });
 });
 
-// REST API: Send context — save to shared file + per-session, inject /ccc into PTY
+// REST API: Send context — save to shared file + per-session, inject /ccc into PTY, append to history
 app.post('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -176,12 +177,27 @@ app.post('/api/sessions/:id/context', (req, res) => {
   const text = (req.body && req.body.text) || '';
   sessionManager.saveContext(req.params.id, text);
 
+  const entry = {
+    id: Date.now().toString(),
+    text,
+    timestamp: new Date().toISOString(),
+    tokens: Math.ceil(text.length / 4),
+  };
+  sessionManager.appendContextHistory(req.params.id, entry);
+
   if (session.ptyProcess) {
     session.ptyProcess.write('\x15/ccc');
     setTimeout(() => session.ptyProcess.write('\r'), 50);
   }
 
-  res.json({ status: 'sent' });
+  res.json({ status: 'sent', entry });
+});
+
+// REST API: Get context history for a session
+app.get('/api/sessions/:id/context/history', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json(sessionManager.loadContextHistory(req.params.id));
 });
 
 // REST API: Get prompt history for a session
@@ -189,6 +205,16 @@ app.get('/api/sessions/:id/history', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json(sessionManager.loadPromptHistory(req.params.id));
+});
+
+// REST API: Update session flags (yolo, withChrome, etc.)
+app.patch('/api/sessions/:id/flags', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const flags = (req.body && typeof req.body === 'object') ? req.body : {};
+  sessionManager.updateFlags(req.params.id, flags);
+  broadcastSessionUpdate();
+  res.json({ status: 'ok', flags: session.flags });
 });
 
 // REST API: Get config (templates, settings)
@@ -362,6 +388,7 @@ wss.on('connection', (ws) => {
             description: session.description || 'Claude Code session',
             createdAt: session.createdAt,
             history,
+            yolo: !!(session.flags && session.flags.yolo),
           }));
         } else {
           ws.send(JSON.stringify({

@@ -7,10 +7,10 @@
   // ─── DOM References ─────────────────────────────────
 
   const contextEditorEl = document.getElementById('contextEditor');
-  const contextPreviewEl = document.getElementById('contextPreview');
   const contextCharCountEl = document.getElementById('contextCharCount');
   const contextTokenCountEl = document.getElementById('contextTokenCount');
   const sendContextBtn = document.getElementById('sendContextBtn');
+  const ctxHistoryListEl = document.getElementById('ctxHistoryList');
 
   const promptEditorEl = document.getElementById('promptEditor');
   const promptCharCountEl = document.getElementById('promptCharCount');
@@ -19,9 +19,11 @@
   const clearPromptBtn = document.getElementById('clearPromptBtn');
 
   const historyListEl = document.getElementById('historyList');
+  const historyFooterEl = document.getElementById('historyFooter');
   const historySearchEl = document.getElementById('historySearch');
 
-  const templateSelectEl = document.getElementById('templateSelect');
+  const templateBtnEl = document.getElementById('templateBtn');
+  const templateDropdownEl = document.getElementById('templateDropdown');
   const stopSessionBtn = document.getElementById('stopSessionBtn');
   const statusMessageEl = document.getElementById('statusMessage');
   const toastContainerEl = document.getElementById('toastContainer');
@@ -31,7 +33,9 @@
   let sessionId = null;
   let activeHistoryId = null;
   let historyData = [];
-  let contextAutoSent = false; // track whether context has been auto-sent this session
+  let ctxHistoryData = [];
+  let activeCtxHistoryId = null;
+  let contextAutoSent = false;
 
   // Disable UI until terminal is connected
   sendContextBtn.disabled = true;
@@ -39,6 +43,7 @@
   clearPromptBtn.disabled = true;
   contextEditorEl.disabled = true;
   promptEditorEl.disabled = true;
+  templateBtnEl.disabled = true;
 
   // ─── Helpers ────────────────────────────────────────
 
@@ -68,58 +73,34 @@
 
   // ─── Templates ──────────────────────────────────────
 
+  let loadedTemplates = {};
+
   fetch('/api/config')
     .then(r => r.json())
     .then(config => {
-      const templates = config && config.templates ? config.templates : {};
-      Object.keys(templates).forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
-        templateSelectEl.appendChild(opt);
+      loadedTemplates = (config && config.templates) ? config.templates : {};
+      Object.keys(loadedTemplates).forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'template-item';
+        item.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        item.addEventListener('click', () => {
+          contextEditorEl.value = loadedTemplates[name] || '';
+          updateContextCounts();
+          templateDropdownEl.classList.add('hidden');
+        });
+        templateDropdownEl.appendChild(item);
       });
     })
     .catch(() => {});
 
-  templateSelectEl.addEventListener('change', () => {
-    const name = templateSelectEl.value;
-    if (!name) return;
-    fetch('/api/config')
-      .then(r => r.json())
-      .then(config => {
-        const text = config && config.templates && config.templates[name];
-        if (text) {
-          contextEditorEl.value = text;
-          renderContextPreview();
-          updateContextCounts();
-        }
-        templateSelectEl.value = '';
-      })
-      .catch(() => {});
+  templateBtnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    templateDropdownEl.classList.toggle('hidden');
   });
 
-  // ─── Context ────────────────────────────────────────
+  document.addEventListener('click', () => templateDropdownEl.classList.add('hidden'));
 
-  function renderContextPreview() {
-    const md = contextEditorEl.value;
-    if (!md.trim()) {
-      clearChildren(contextPreviewEl);
-      const p = document.createElement('p');
-      p.className = 'preview-empty';
-      p.textContent = 'Start typing to see a live preview...';
-      contextPreviewEl.appendChild(p);
-      return;
-    }
-    try {
-      contextPreviewEl.innerHTML = marked.parse(md);
-    } catch {
-      clearChildren(contextPreviewEl);
-      const p = document.createElement('p');
-      p.style.color = 'var(--danger)';
-      p.textContent = 'Markdown parse error';
-      contextPreviewEl.appendChild(p);
-    }
-  }
+  // ─── Context ────────────────────────────────────────
 
   function updateContextCounts() {
     const n = contextEditorEl.value.length;
@@ -127,10 +108,48 @@
     contextTokenCountEl.textContent = '~' + Math.round(n / 4).toLocaleString() + ' tokens';
   }
 
-  contextEditorEl.addEventListener('input', () => {
-    renderContextPreview();
-    updateContextCounts();
-  });
+  contextEditorEl.addEventListener('input', updateContextCounts);
+
+  function renderCtxHistory() {
+    clearChildren(ctxHistoryListEl);
+    if (ctxHistoryData.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding: 24px 12px; text-align: center; color: var(--text-4); font-size: 12px;';
+      empty.textContent = 'No context sent yet';
+      ctxHistoryListEl.appendChild(empty);
+      return;
+    }
+    ctxHistoryData.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'ctx-history-item' + (entry.id === activeCtxHistoryId ? ' active' : '');
+
+      const preview = document.createElement('div');
+      preview.className = 'ctx-history-item-preview';
+      preview.textContent = entry.text;
+
+      const meta = document.createElement('div');
+      meta.className = 'ctx-history-item-meta';
+      const time = document.createElement('span');
+      time.textContent = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const tokens = document.createElement('span');
+      tokens.textContent = '~' + (entry.tokens || Math.round(entry.text.length / 4)) + ' tok';
+      meta.appendChild(time);
+      meta.appendChild(tokens);
+
+      item.appendChild(preview);
+      item.appendChild(meta);
+
+      item.addEventListener('click', () => {
+        activeCtxHistoryId = entry.id;
+        contextEditorEl.value = entry.text;
+        updateContextCounts();
+        renderCtxHistory();
+        showToast('Context loaded into editor', 'info');
+      });
+
+      ctxHistoryListEl.appendChild(item);
+    });
+  }
 
   sendContextBtn.addEventListener('click', async () => {
     if (!sessionId) return;
@@ -146,6 +165,12 @@
         body: JSON.stringify({ text: contextEditorEl.value }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (data.entry) {
+          ctxHistoryData.unshift(data.entry);
+          activeCtxHistoryId = data.entry.id;
+          renderCtxHistory();
+        }
         setStatus('/ccc sent', 2000);
       } else {
         showToast('Failed to send context', 'info');
@@ -238,6 +263,9 @@
     const filtered = filter
       ? historyData.filter(p => p.text.toLowerCase().includes(filter))
       : historyData;
+
+    const total = historyData.length;
+    if (historyFooterEl) historyFooterEl.textContent = total + ' prompt' + (total !== 1 ? 's' : '');
 
     clearChildren(historyListEl);
 
@@ -392,14 +420,12 @@
     clearPromptBtn.disabled = false;
     contextEditorEl.disabled = false;
     promptEditorEl.disabled = false;
-    templateSelectEl.disabled = false;
+    templateBtnEl.disabled = false;
     stopSessionBtn.disabled = false;
 
-    // Start with clean editors — shared files belong to whoever last sent,
-    // not to this session. Context and prompt editors start blank.
+    // Start with clean editors
     contextEditorEl.value = '';
     promptEditorEl.value = '';
-    renderContextPreview();
     updateContextCounts();
     updatePromptCounts();
 
@@ -408,13 +434,10 @@
       const ctxRes = await fetch('/api/sessions/' + sid + '/context');
       if (ctxRes.ok) {
         const ctxData = await ctxRes.json();
-        if (ctxData.text) {
-          contextEditorEl.value = ctxData.text;
-        }
+        if (ctxData.text) contextEditorEl.value = ctxData.text;
       }
     } catch (err) { console.error('Failed to load context:', err); }
 
-    // If still blank, pre-fill with the default template
     if (!contextEditorEl.value.trim()) {
       try {
         const cfgRes = await fetch('/api/config');
@@ -425,8 +448,18 @@
         }
       } catch (err) { /* non-critical */ }
     }
-    renderContextPreview();
     updateContextCounts();
+
+    // Load context history
+    try {
+      const chRes = await fetch('/api/sessions/' + sid + '/context/history');
+      if (chRes.ok) {
+        ctxHistoryData = await chRes.json();
+        ctxHistoryData.reverse();
+        if (ctxHistoryData.length > 0) activeCtxHistoryId = ctxHistoryData[0].id;
+      }
+    } catch (err) { /* non-critical */ }
+    renderCtxHistory();
 
     // Load prompt history (per-session)
     try {
@@ -446,12 +479,13 @@
   window.addEventListener('wingman-session-ended', () => {
     const overlay = document.getElementById('session-ended-overlay');
     if (overlay) overlay.classList.remove('hidden');
+    setTimeout(() => window.close(), 1000);
     sendContextBtn.disabled = true;
     sendPromptBtn.disabled = true;
     clearPromptBtn.disabled = true;
     contextEditorEl.disabled = true;
     promptEditorEl.disabled = true;
-    templateSelectEl.disabled = true;
+    templateBtnEl.disabled = true;
     stopSessionBtn.disabled = true;
   });
 
