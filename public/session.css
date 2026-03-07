@@ -592,12 +592,13 @@
   }
   .context-hint.hidden { display: none; }
 
-  /* Attach group: attach btn + copy btn side by side */
+  /* Attach group: attach btn + copy btn side by side, pushed right */
   .attach-group {
     display: flex;
     align-items: center;
     gap: 0;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   /* When copy btn is visible, merge borders on the attach btn */
