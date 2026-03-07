@@ -59,8 +59,8 @@ if (!BASH_PATH) {
 
 const app = express();
 
-// JSON body parsing for POST endpoints
-app.use(express.json());
+// JSON body parsing for POST endpoints (10MB limit for file uploads)
+app.use(express.json({ limit: '10mb' }));
 
 // --- Custom routes (BEFORE express.static to avoid index.html interception) ---
 
@@ -311,6 +311,32 @@ app.get('/api/files', (req, res) => {
   } catch (err) {
     res.status(404).json({ error: 'Directory not found' });
   }
+});
+
+// REST API: Upload a file to the project (saves to defaultFileDir)
+app.post('/api/files/upload', (req, res) => {
+  const { name, data } = req.body || {};
+  if (!name || !data) return res.status(400).json({ error: 'name and data (base64) required' });
+
+  // Sanitise filename — strip path separators
+  const safeName = path.basename(name).replace(/[<>:"|?*]/g, '_');
+  if (!safeName) return res.status(400).json({ error: 'Invalid filename' });
+
+  const config = sessionManager.loadConfig();
+  const destDir = (config.settings && config.settings.defaultFileDir) || 'docs/promptfiles';
+  const absDir = path.resolve(process.cwd(), destDir);
+
+  // Security: ensure within project
+  if (!absDir.replace(/\\/g, '/').startsWith(process.cwd().replace(/\\/g, '/'))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  fs.mkdirSync(absDir, { recursive: true });
+  const destPath = path.join(absDir, safeName);
+  fs.writeFileSync(destPath, Buffer.from(data, 'base64'));
+
+  const relPath = path.relative(process.cwd(), destPath).replace(/\\/g, '/');
+  res.json({ path: relPath, name: safeName });
 });
 
 // REST API: Shutdown Wingman
