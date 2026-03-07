@@ -581,16 +581,19 @@
   .action-btn:hover:not(:disabled) { color: var(--primary); border-color: var(--primary); background: var(--primary-glow); }
   .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  .context-hint {
-    flex: 1;
-    font-size: 11px;
+  .context-hint-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    background: oklch(0.45 0.08 80 / 0.12);
+    border-top: 1px solid oklch(0.55 0.12 80 / 0.25);
+    font-size: 12px;
     font-family: var(--font-mono);
     color: var(--warning);
-    opacity: 0.8;
-    letter-spacing: 0.01em;
-    text-align: right;
+    flex-shrink: 0;
   }
-  .context-hint.hidden { display: none; }
+  .context-hint-bar.hidden { display: none; }
 
   /* Attach group: attach btn + copy btn side by side, pushed right */
   .attach-group {

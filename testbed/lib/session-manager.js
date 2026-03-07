@@ -128,7 +128,16 @@ class SessionManager {
         description: s.description || 'Session ' + s.id.substring(0, 8),
         createdAt: s.createdAt,
         status: this.getSessionStatus(s.id),
+        flags: s.flags || {},
       }));
+  }
+
+  updateFlags(sessionId, flags) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+    session.flags = { ...(session.flags || {}), ...flags };
+    this.saveSessionFile(sessionId);
+    return true;
   }
 
   closeSession(sessionId) {
@@ -212,7 +221,9 @@ class SessionManager {
       createdAt: session.createdAt,
       closed: session.closed,
       promptHistory: session.promptHistory || [],
+      contextHistory: session.contextHistory || [],
       contextText: session.contextText || '',
+      flags: session.flags || {},
     };
     const filePath = this.getSessionFilePath(sessionId);
     const tmpFile = filePath + '.tmp';
@@ -232,6 +243,19 @@ class SessionManager {
   loadPromptHistory(sessionId) {
     const session = this.sessions.get(sessionId);
     return (session && session.promptHistory) || [];
+  }
+
+  appendContextHistory(sessionId, entry) {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    if (!session.contextHistory) session.contextHistory = [];
+    session.contextHistory.push(entry);
+    this.saveSessionFile(sessionId);
+  }
+
+  loadContextHistory(sessionId) {
+    const session = this.sessions.get(sessionId);
+    return (session && session.contextHistory) || [];
   }
 
   // Load all session files from disk on startup

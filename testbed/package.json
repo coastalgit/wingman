@@ -1,6 +1,7 @@
 {
   "name": "wingman",
   "version": "2.0.0",
+  "build": 17,
   "description": "Browser terminal for Claude Code sessions",
   "main": "server.js",
   "bin": {

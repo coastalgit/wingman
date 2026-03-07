@@ -54,13 +54,25 @@ ws.onmessage = (event) => {
       termStatus.textContent =
         msg.status === "resumed" ? "reconnected" : "connected";
 
-    // Replay history
-    if (msg.history && msg.history.length > 0) {
-      msg.history.forEach((chunk) => term.write(chunk));
+    // YOLO banner
+    const yoloBanner = document.getElementById("yolo-banner");
+    if (yoloBanner) {
+      if (msg.yolo) {
+        yoloBanner.textContent = "YOLO MODE — Claude will execute without confirmation";
+        yoloBanner.classList.remove("hidden");
+      } else {
+        yoloBanner.classList.add("hidden");
+      }
     }
 
-    // Notify session-ui after terminal has had a chance to paint
-    requestAnimationFrame(() => {
+    // Chrome indicator
+    const chromeIndicator = document.getElementById("chrome-indicator");
+    if (chromeIndicator) {
+      chromeIndicator.classList.toggle("hidden", !msg.withChrome);
+    }
+
+    // Replay history, then fire ready only after xterm has finished rendering
+    const fireReady = () => {
       requestAnimationFrame(() => {
         window.dispatchEvent(
           new CustomEvent("wingman-session-ready", {
@@ -68,7 +80,19 @@ ws.onmessage = (event) => {
           }),
         );
       });
-    });
+    };
+
+    if (msg.history && msg.history.length > 0) {
+      let remaining = msg.history.length;
+      msg.history.forEach((chunk) => {
+        term.write(chunk, () => {
+          remaining--;
+          if (remaining === 0) fireReady();
+        });
+      });
+    } else {
+      fireReady();
+    }
 
     console.log(
       "Connected to session " + msg.sessionId + " (status: " + msg.status + ")",
@@ -85,9 +109,9 @@ ws.onmessage = (event) => {
     window.dispatchEvent(new CustomEvent("wingman-session-ended"));
   } else if (msg.type === "shutdown") {
     serverShuttingDown = true;
-    term.writeln("\r\n\x1b[31m[Wingman shutting down...]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Wingman shutting down...]\x1b[0m");
   } else if (msg.type === "error") {
-    term.writeln("\r\n\x1b[31m[Error: " + msg.message + "]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Error: " + msg.message + "]\x1b[0m");
   }
 };
 
@@ -122,9 +146,9 @@ ws.onopen = () => {
 
 ws.onclose = () => {
   if (serverShuttingDown) {
-    term.writeln("\r\n\x1b[31m[Wingman ended]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Wingman ended]\x1b[0m");
   } else {
-    term.writeln("\r\n\x1b[31m[Connection closed]\x1b[0m");
+    term.writeln("\r\n\x1b[38;5;208m[Connection closed]\x1b[0m");
   }
 };
 
