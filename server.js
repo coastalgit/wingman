@@ -154,9 +154,9 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
   sessionManager.appendPromptHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    // Write the prompt text directly into the PTY so it's visible in the terminal.
-    // Ctrl+U clears any pending input, then the prompt text is typed and submitted.
-    session.ptyProcess.write('\x15' + text + '\r');
+    // Send /ccp slash command to read the prompt file we just saved.
+    // Ctrl+U clears any pending input first.
+    session.ptyProcess.write('\x15/ccp\r');
   }
 
   res.json({ status: 'sent', entry });
@@ -186,8 +186,7 @@ app.post('/api/sessions/:id/context', (req, res) => {
   sessionManager.appendContextHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    session.ptyProcess.write('\x15/ccc');
-    setTimeout(() => session.ptyProcess.write('\r'), 50);
+    session.ptyProcess.write('\x15/ccc\r');
   }
 
   res.json({ status: 'sent', entry });

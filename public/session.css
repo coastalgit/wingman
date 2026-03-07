@@ -191,11 +191,11 @@
   .feature-nav-btn:hover svg { opacity: 0.8; }
 
   .feature-nav-btn.active {
-    color: var(--primary);
-    background: var(--primary-dim);
-    border: 1px solid var(--primary-mid);
+    color: #fff;
+    background: var(--primary);
+    border: 1px solid var(--primary);
   }
-  .feature-nav-btn.active svg { opacity: 1; }
+  .feature-nav-btn.active svg { opacity: 1; color: #fff; }
 
   .header-session-name {
     font-size: 14px;
@@ -595,6 +595,16 @@
   }
   .file-btn:hover:not(:disabled) { color: var(--primary); border-color: var(--primary); background: var(--primary-glow); }
   .file-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .context-hint {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--warning);
+    opacity: 0.8;
+    letter-spacing: 0.01em;
+    margin-left: auto;
+  }
+  .context-hint.hidden { display: none; }
 
   .context-actions {
     display: flex;

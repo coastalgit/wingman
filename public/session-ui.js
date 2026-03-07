@@ -36,7 +36,7 @@
   let historyData = [];
   let ctxHistoryData = [];
   let activeCtxHistoryId = null;
-  let contextAutoSent = false;
+  let contextSent = false;
 
   // Disable UI until terminal is connected
   sendContextBtn.disabled = true;
@@ -107,6 +107,7 @@
     const n = contextEditorEl.value.length;
     contextCharCountEl.textContent = n.toLocaleString() + ' chars';
     contextTokenCountEl.textContent = '~' + Math.round(n / 4).toLocaleString() + ' tokens';
+    if (sessionId) sendContextBtn.disabled = !contextEditorEl.value.trim();
   }
 
   contextEditorEl.addEventListener('input', updateContextCounts);
@@ -173,6 +174,9 @@
           renderCtxHistory();
         }
         setStatus('/ccc sent', 2000);
+        contextSent = true;
+        const hint = document.getElementById('contextHint');
+        if (hint) hint.classList.add('hidden');
       } else {
         showToast('Failed to send context', 'info');
         setStatus('Ready');
@@ -192,6 +196,7 @@
     const n = promptEditorEl.value.length;
     promptCharCountEl.textContent = n.toLocaleString() + ' chars';
     tokenEstimateEl.textContent = '~' + Math.round(n / 4).toLocaleString() + ' tokens';
+    if (sessionId) sendPromptBtn.disabled = !promptEditorEl.value.trim();
   }
 
   promptEditorEl.addEventListener('input', updatePromptCounts);
@@ -202,22 +207,6 @@
     if (!sessionId) return;
 
     sendPromptBtn.disabled = true;
-
-    // On first prompt: auto-send context first if not blank
-    if (!contextAutoSent) {
-      contextAutoSent = true;
-      const ctxText = contextEditorEl.value.trim();
-      if (ctxText) {
-        setStatus('Sending context...');
-        try {
-          await fetch('/api/sessions/' + sessionId + '/context', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: contextEditorEl.value }),
-          });
-        } catch (err) { console.error('Auto-send context failed:', err); }
-      }
-    }
 
     setStatus('Sending prompt...');
     try {
@@ -246,7 +235,7 @@
       showToast('Network error', 'info');
       setStatus('Ready');
     } finally {
-      sendPromptBtn.disabled = false;
+      updatePromptCounts(); // re-evaluates disabled state based on content
     }
   });
 
@@ -523,9 +512,7 @@
   async function loadSessionData(sid) {
     sessionId = sid;
 
-    // Enable UI now that terminal is connected
-    sendContextBtn.disabled = false;
-    sendPromptBtn.disabled = false;
+    // Enable UI now that terminal is connected (send btns stay disabled until content typed)
     clearPromptBtn.disabled = false;
     contextEditorEl.disabled = false;
     promptEditorEl.disabled = false;
@@ -571,6 +558,13 @@
     } catch (err) { /* non-critical */ }
     renderCtxHistory();
 
+    // If context was already sent in a previous visit, hide the hint
+    if (ctxHistoryData.length > 0) {
+      contextSent = true;
+      const hint = document.getElementById('contextHint');
+      if (hint) hint.classList.add('hidden');
+    }
+
     // Load prompt history (per-session)
     try {
       const res = await fetch('/api/sessions/' + sid + '/history');
@@ -578,8 +572,6 @@
         historyData = await res.json();
         historyData.reverse();
         renderHistory();
-        // If history exists, context was already sent in a previous interaction
-        if (historyData.length > 0) contextAutoSent = true;
       }
     } catch (err) { console.error('Failed to load history:', err); }
   }
