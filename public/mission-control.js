@@ -179,6 +179,168 @@ exitBtn.addEventListener("click", async () => {
   }
 });
 
+// ─── Args Editor Modal ──────────────────────────────
+
+const argsModal = document.getElementById("args-modal");
+const argsClose = document.getElementById("args-close");
+const argsCancel = document.getElementById("args-cancel");
+const argsSave = document.getElementById("args-save");
+const argsFlagsList = document.getElementById("argsFlagsList");
+const argsStatus = document.getElementById("argsStatus");
+const argsModalTitle = document.getElementById("argsModalTitle");
+
+let argsSessionId = null;
+let claudeFlags = null;
+
+function closeArgsModal() { argsModal.classList.add("hidden"); }
+argsClose.addEventListener("click", closeArgsModal);
+argsCancel.addEventListener("click", closeArgsModal);
+argsModal.addEventListener("click", (e) => { if (e.target === argsModal) closeArgsModal(); });
+
+async function openArgsModal(sessionId, sessionDesc) {
+  argsSessionId = sessionId;
+  argsModalTitle.textContent = "Arguments — " + (sessionDesc || "Session");
+  argsStatus.textContent = "";
+  argsModal.classList.remove("hidden");
+
+  // Fetch flags definition (cached after first call)
+  if (!claudeFlags) {
+    argsFlagsList.textContent = "Loading flags...";
+    try {
+      const res = await fetch("/api/claude-flags");
+      claudeFlags = await res.json();
+    } catch { claudeFlags = []; }
+  }
+
+  // Load existing customArgs for this session
+  let existingArgs = {};
+  try {
+    const res = await fetch("/api/sessions/" + sessionId);
+    // We get the full session list and find ours
+  } catch {}
+  // Get flags from session data via the sessions list
+  try {
+    const res = await fetch("/api/sessions");
+    const sessions = await res.json();
+    const sess = sessions.find(s => s.id === sessionId);
+    if (sess && sess.flags && sess.flags.customArgs) existingArgs = sess.flags.customArgs;
+  } catch {}
+
+  renderArgsFlags(existingArgs);
+}
+
+function renderArgsFlags(existingArgs) {
+  argsFlagsList.replaceChildren();
+  if (!claudeFlags || claudeFlags.length === 0) {
+    argsFlagsList.textContent = "No flags available";
+    return;
+  }
+
+  claudeFlags.forEach(flag => {
+    const row = document.createElement("div");
+    row.className = "args-flag-row";
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "args-flag-check";
+    check.dataset.flag = flag.long;
+
+    const info = document.createElement("div");
+    info.className = "args-flag-info";
+
+    const name = document.createElement("div");
+    name.className = "args-flag-name";
+    name.textContent = flag.long + (flag.short ? " (" + flag.short + ")" : "");
+    info.appendChild(name);
+
+    const desc = document.createElement("div");
+    desc.className = "args-flag-desc";
+    desc.textContent = flag.desc;
+    info.appendChild(desc);
+
+    let valueInput = null;
+    if (flag.value || flag.choices) {
+      const valueDiv = document.createElement("div");
+      valueDiv.className = "args-flag-value";
+      valueDiv.style.display = "none";
+
+      if (flag.choices) {
+        valueInput = document.createElement("select");
+        const emptyOpt = document.createElement("option");
+        emptyOpt.value = "";
+        emptyOpt.textContent = "— select —";
+        valueInput.appendChild(emptyOpt);
+        flag.choices.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c;
+          valueInput.appendChild(opt);
+        });
+      } else {
+        valueInput = document.createElement("input");
+        valueInput.type = "text";
+        valueInput.placeholder = flag.value || "value";
+      }
+      valueInput.dataset.flag = flag.long;
+      valueDiv.appendChild(valueInput);
+      info.appendChild(valueDiv);
+
+      check.addEventListener("change", () => {
+        valueDiv.style.display = check.checked ? "block" : "none";
+        if (check.checked && valueInput.tagName === "INPUT") valueInput.focus();
+      });
+    }
+
+    // Pre-fill from existing args
+    const existing = existingArgs[flag.long];
+    if (existing !== undefined) {
+      check.checked = true;
+      if (valueInput) {
+        valueInput.parentElement.style.display = "block";
+        if (typeof existing === "string") valueInput.value = existing;
+      }
+    }
+
+    row.appendChild(check);
+    row.appendChild(info);
+    argsFlagsList.appendChild(row);
+  });
+}
+
+argsSave.addEventListener("click", async () => {
+  if (!argsSessionId) return;
+  const customArgs = {};
+  argsFlagsList.querySelectorAll(".args-flag-check:checked").forEach(check => {
+    const flag = check.dataset.flag;
+    const row = check.closest(".args-flag-row");
+    const input = row.querySelector(".args-flag-value input, .args-flag-value select");
+    if (input && input.value.trim()) {
+      customArgs[flag] = input.value.trim();
+    } else if (!input) {
+      customArgs[flag] = true;
+    } else {
+      customArgs[flag] = true;
+    }
+  });
+
+  argsSave.disabled = true;
+  try {
+    await fetch("/api/sessions/" + argsSessionId + "/flags", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customArgs }),
+    });
+    const count = Object.keys(customArgs).length;
+    argsStatus.textContent = count > 0 ? count + " flag" + (count !== 1 ? "s" : "") + " saved" : "Flags cleared";
+    setTimeout(closeArgsModal, 600);
+  } catch (err) {
+    console.error("Failed to save args:", err);
+    argsStatus.textContent = "Save failed";
+  } finally {
+    argsSave.disabled = false;
+  }
+});
+
 let selectedSessionId = null;
 
 // Render session cards using DOM methods (no innerHTML for security)
@@ -346,12 +508,16 @@ function renderSessions(sessions) {
     spacer.style.flex = "1";
     cardBottom.appendChild(spacer);
 
-    // Args button (placeholder — B3)
+    // Args button
     const argsBtn = document.createElement("button");
-    argsBtn.className = "args-btn";
-    argsBtn.title = "Session arguments (coming soon)";
+    const hasArgs = session.flags && session.flags.customArgs && Object.keys(session.flags.customArgs).length > 0;
+    argsBtn.className = "args-btn" + (hasArgs ? " has-args" : "");
+    argsBtn.title = hasArgs ? Object.keys(session.flags.customArgs).join(", ") : "Edit session arguments";
     argsBtn.textContent = "⋯";
-    argsBtn.disabled = true;
+    argsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openArgsModal(session.id, session.description);
+    });
     cardBottom.appendChild(argsBtn);
 
     card.appendChild(cardBottom);

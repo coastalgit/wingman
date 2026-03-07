@@ -632,12 +632,96 @@ button { font-family: var(--font-sans); }
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: not-allowed;
-  opacity: 0.55;
+  cursor: pointer;
+  opacity: 0.65;
   font-family: var(--font-mono);
   font-weight: 700;
   flex-shrink: 0;
   letter-spacing: -0.05em;
+  transition: all 0.15s;
+}
+
+.args-btn:hover { opacity: 1; color: var(--primary); border-color: var(--primary); }
+.args-btn.has-args { color: var(--info); border-color: var(--info); opacity: 0.85; }
+.args-btn.has-args:hover { opacity: 1; }
+
+/* Args modal */
+.args-modal-box { width: 560px; max-width: calc(100vw - 48px); max-height: 80vh; }
+
+.args-modal-body {
+  padding: 12px 20px;
+  overflow-y: auto;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.args-flag-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-btn);
+  transition: background 0.1s;
+}
+
+.args-flag-row:hover { background: var(--bg-hover); }
+
+.args-flag-check {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.args-flag-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.args-flag-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 2px;
+}
+
+.args-flag-desc {
+  font-size: 11px;
+  color: var(--text-4);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.args-flag-value {
+  margin-top: 6px;
+}
+
+.args-flag-value input,
+.args-flag-value select {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-btn);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  outline: none;
+}
+
+.args-flag-value input:focus,
+.args-flag-value select:focus { border-color: var(--primary); }
+
+.args-flag-value input::placeholder { color: var(--text-4); }
+
+.args-status {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--info);
+  margin-right: auto;
 }
 
 

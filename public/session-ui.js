@@ -27,6 +27,7 @@
   const stopSessionBtn = document.getElementById('stopSessionBtn');
   const statusMessageEl = document.getElementById('statusMessage');
   const toastContainerEl = document.getElementById('toastContainer');
+  const addFileBtnEl = document.getElementById('addFileBtn');
 
   // ─── State ──────────────────────────────────────────
 
@@ -344,6 +345,114 @@
     });
   });
 
+  // ─── File Browser ──────────────────────────────────
+
+  const fileModal = document.getElementById('file-modal');
+  const fileClose = document.getElementById('file-close');
+  const fileBrowserPath = document.getElementById('fileBrowserPath');
+  const fileBrowserList = document.getElementById('fileBrowserList');
+  const fileSelectedPath = document.getElementById('fileSelectedPath');
+  const fileCopyBtn = document.getElementById('fileCopyBtn');
+
+  let selectedFilePath = null;
+
+  function closeFileModal() { fileModal.classList.add('hidden'); }
+  fileClose.addEventListener('click', closeFileModal);
+  fileModal.addEventListener('click', (e) => { if (e.target === fileModal) closeFileModal(); });
+
+  async function loadDirectory(dirPath) {
+    fileBrowserList.textContent = 'Loading...';
+    selectedFilePath = null;
+    fileSelectedPath.textContent = 'Select a file';
+    fileSelectedPath.classList.remove('has-file');
+    fileCopyBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/files?path=' + encodeURIComponent(dirPath));
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+
+      fileBrowserPath.textContent = data.path || '.';
+      fileBrowserList.replaceChildren();
+
+      // Back button (if not at root)
+      if (data.path && data.path !== '.') {
+        const back = document.createElement('div');
+        back.className = 'file-browser-item dir';
+        const icon = document.createElement('span');
+        icon.className = 'file-browser-item-icon';
+        icon.textContent = '\u2190';
+        back.appendChild(icon);
+        back.appendChild(document.createTextNode('..'));
+        back.addEventListener('click', () => {
+          const parts = data.path.split('/');
+          parts.pop();
+          loadDirectory(parts.join('/') || '.');
+        });
+        fileBrowserList.appendChild(back);
+      }
+
+      data.items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'file-browser-item ' + item.type;
+
+        const icon = document.createElement('span');
+        icon.className = 'file-browser-item-icon';
+        icon.textContent = item.type === 'dir' ? '\uD83D\uDCC1' : '\uD83D\uDCC4';
+        el.appendChild(icon);
+        el.appendChild(document.createTextNode(item.name));
+
+        if (item.type === 'dir') {
+          el.addEventListener('click', () => loadDirectory(item.path));
+        } else {
+          el.addEventListener('click', () => {
+            fileBrowserList.querySelectorAll('.selected').forEach(s => s.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedFilePath = item.path;
+            fileSelectedPath.textContent = item.path;
+            fileSelectedPath.classList.add('has-file');
+            fileCopyBtn.disabled = false;
+          });
+        }
+
+        fileBrowserList.appendChild(el);
+      });
+
+      if (data.items.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding: 24px; text-align: center; color: var(--text-4); font-size: 12px;';
+        empty.textContent = 'Empty directory';
+        fileBrowserList.appendChild(empty);
+      }
+    } catch (err) {
+      fileBrowserList.textContent = 'Failed to load directory';
+    }
+  }
+
+  addFileBtnEl.addEventListener('click', () => {
+    fileModal.classList.remove('hidden');
+    loadDirectory('.');
+  });
+
+  fileCopyBtn.addEventListener('click', async () => {
+    if (!selectedFilePath) return;
+    try {
+      await navigator.clipboard.writeText(selectedFilePath);
+      showToast('Path copied: ' + selectedFilePath, 'success');
+      closeFileModal();
+    } catch {
+      // Fallback: insert into prompt editor directly
+      const pos = promptEditorEl.selectionStart;
+      const before = promptEditorEl.value.substring(0, pos);
+      const after = promptEditorEl.value.substring(promptEditorEl.selectionEnd);
+      promptEditorEl.value = before + selectedFilePath + after;
+      promptEditorEl.selectionStart = promptEditorEl.selectionEnd = pos + selectedFilePath.length;
+      updatePromptCounts();
+      showToast('Path inserted into prompt', 'info');
+      closeFileModal();
+    }
+  });
+
   // ─── Keyboard Shortcuts ─────────────────────────────
 
   document.addEventListener('keydown', (e) => {
@@ -421,6 +530,7 @@
     contextEditorEl.disabled = false;
     promptEditorEl.disabled = false;
     templateBtnEl.disabled = false;
+    addFileBtnEl.disabled = false;
     stopSessionBtn.disabled = false;
 
     // Start with clean editors
@@ -486,6 +596,7 @@
     contextEditorEl.disabled = true;
     promptEditorEl.disabled = true;
     templateBtnEl.disabled = true;
+    addFileBtnEl.disabled = true;
     stopSessionBtn.disabled = true;
   });
 

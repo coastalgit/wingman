@@ -579,6 +579,23 @@
 
   .clear-btn:hover { background: rgba(255, 255, 255, 0.06); }
 
+  .file-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius-btn);
+    color: var(--text-3);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .file-btn:hover:not(:disabled) { color: var(--primary); border-color: var(--primary); background: var(--primary-glow); }
+  .file-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
   .context-actions {
     display: flex;
     align-items: center;
@@ -792,4 +809,136 @@
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
+
+  /* ─── Modal (shared with file browser) ─────────────── */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.hidden { display: none; }
+
+  .modal-box {
+    background: var(--bg-raised);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+    width: 480px;
+    max-width: calc(100vw - 48px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--border-1);
+  }
+
+  .modal-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+    letter-spacing: -0.01em;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-3);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: all 0.12s;
+  }
+  .modal-close:hover { background: var(--bg-hover); color: var(--text-1); }
+
+  .modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-1);
+  }
+
+  /* ─── File Browser Modal ───────────────────────────── */
+
+  .file-modal-box { max-height: 70vh; }
+
+  .file-browser-path {
+    padding: 8px 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--info);
+    background: var(--bg-base);
+    border-bottom: 1px solid var(--border-1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .file-browser-body {
+    padding: 8px 12px;
+    overflow-y: auto;
+    max-height: 40vh;
+    gap: 2px;
+  }
+
+  .file-browser-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--radius-btn);
+    cursor: pointer;
+    transition: all 0.1s;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .file-browser-item:hover { background: var(--bg-hover); color: var(--text-1); }
+  .file-browser-item.selected { background: var(--primary-dim); border: 1px solid var(--primary-mid); color: var(--text-1); }
+
+  .file-browser-item-icon {
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .file-browser-item.dir .file-browser-item-icon { color: var(--warning); }
+
+  .file-browser-footer { justify-content: space-between; }
+
+  .file-selected-path {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .file-selected-path.has-file { color: var(--text-1); }
 }
