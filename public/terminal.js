@@ -65,6 +65,12 @@ ws.onmessage = (event) => {
       }
     }
 
+    // Chrome indicator
+    const chromeIndicator = document.getElementById("chrome-indicator");
+    if (chromeIndicator) {
+      chromeIndicator.classList.toggle("hidden", !msg.withChrome);
+    }
+
     // Replay history, then fire ready only after xterm has finished rendering
     const fireReady = () => {
       requestAnimationFrame(() => {

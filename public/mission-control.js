@@ -123,6 +123,51 @@ newSessionBtn.addEventListener("click", async () => {
   }
 });
 
+// ─── Settings Modal ─────────────────────────────────
+
+const settingsBtn = document.getElementById("settings-btn");
+const settingsModal = document.getElementById("settings-modal");
+const settingsClose = document.getElementById("settings-close");
+const settingsCancel = document.getElementById("settings-cancel");
+const settingsSave = document.getElementById("settings-save");
+const defaultFileDirInput = document.getElementById("defaultFileDirInput");
+
+settingsBtn.addEventListener("click", () => {
+  fetch("/api/config")
+    .then(r => r.json())
+    .then(cfg => {
+      const dir = (cfg.settings && cfg.settings.defaultFileDir) || "docs/promptfiles/";
+      defaultFileDirInput.value = dir;
+    })
+    .catch(() => {});
+  settingsModal.classList.remove("hidden");
+});
+
+function closeSettingsModal() {
+  settingsModal.classList.add("hidden");
+}
+
+settingsClose.addEventListener("click", closeSettingsModal);
+settingsCancel.addEventListener("click", closeSettingsModal);
+settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) closeSettingsModal(); });
+
+settingsSave.addEventListener("click", async () => {
+  const dir = defaultFileDirInput.value.trim() || "docs/promptfiles/";
+  settingsSave.disabled = true;
+  try {
+    await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultFileDir: dir }),
+    });
+    closeSettingsModal();
+  } catch (err) {
+    console.error("Failed to save settings:", err);
+  } finally {
+    settingsSave.disabled = false;
+  }
+});
+
 // Exit Wingman button
 exitBtn.addEventListener("click", async () => {
   exitBtn.disabled = true;
@@ -278,6 +323,23 @@ function renderSessions(sessions) {
     yoloLabel.appendChild(yoloCheck);
     yoloLabel.appendChild(document.createTextNode(" YOLO"));
     cardBottom.appendChild(yoloLabel);
+
+    // With Chrome flag
+    const chromeLabel = document.createElement("label");
+    chromeLabel.className = "flag-label chrome";
+    const chromeCheck = document.createElement("input");
+    chromeCheck.type = "checkbox";
+    chromeCheck.checked = !!(session.flags && session.flags.withChrome);
+    chromeCheck.addEventListener("change", async () => {
+      await fetch("/api/sessions/" + session.id + "/flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withChrome: chromeCheck.checked }),
+      }).catch(() => {});
+    });
+    chromeLabel.appendChild(chromeCheck);
+    chromeLabel.appendChild(document.createTextNode(" Chrome"));
+    cardBottom.appendChild(chromeLabel);
 
     // Spacer
     const spacer = document.createElement("div");
