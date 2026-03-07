@@ -1,73 +1,77 @@
-# Wingman - Basic Starter Test App
+# Wingman
 
-This is a basic test application to verify that your Flutter Windows desktop environment is set up correctly. It tests key functionality that will be needed for the full Wingman application.
+A browser-based mission control for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions. Launch, manage, and interact with multiple Claude Code instances from a single dashboard.
 
-## Setup Instructions
-
-### 1. Prerequisites
-
-Make sure you have the following installed:
-
-- Flutter SDK (latest stable version)
-- Windows 10 or higher
-- Visual Studio 2019 or higher (with Desktop development with C++ workload)
-- Git
-
-### 2. Verify Flutter Setup for Windows
-
-Run these commands to verify your setup:
+## Quick Start
 
 ```bash
-flutter doctor
+cd your-project
+npx wingman
 ```
 
-Ensure that the Windows desktop development is enabled:
+This opens Mission Control in your browser. From there you can launch Claude Code sessions, each in its own browser tab with a full terminal + prompt/context editor.
+
+## Features
+
+- **Mission Control** — Dashboard showing all sessions with status indicators
+- **Session Management** — Launch, stop, reconnect, and delete sessions
+- **Prompt Composer** — Write and send prompts with history tracking
+- **Context Editor** — Manage session context with templates and send history
+- **CLI Flags** — Set Claude flags per-session (model, effort, permissions, etc.)
+- **YOLO Mode** — `--dangerously-skip-permissions` with a red warning banner
+- **Chrome Mode** — `--chrome` flag with blue indicator
+- **File References** — Drag-and-drop files or browse project to get copyable paths
+- **Settings** — Configure default file directory for uploads
+- **Manual Mode** — `npx wingman --manual` for file-based prompt staging without PTY
+
+## Requirements
+
+- **Node.js** >= 18
+- **Git for Windows** (provides the bash shell used to spawn Claude)
+- **Claude Code CLI** installed (`claude` available in PATH)
+
+## How It Works
+
+Wingman spawns Claude Code processes via [node-pty](https://github.com/nickel-org/node-pty) and streams terminal I/O to the browser over WebSocket. Prompts and context are saved as markdown files (`.ai/wingman/cprompt.md`, `.ai/wingman/ccontext.md`) and injected into the Claude session via the `/ccp` and `/ccc` slash commands.
+
+### Project Files
+
+When you run Wingman in a directory, it creates:
+
+```
+.ai/wingman/
+  wingman.json          — Config (templates, settings)
+  wingman.pid           — Process lock (prevents duplicate instances)
+  cprompt.md            — Active prompt file
+  ccontext.md           — Active context file
+  sessions/
+    <session-id>.json   — Per-session data (history, flags)
+```
+
+### Slash Commands
+
+Wingman sets up two Claude Code slash commands in `.claude/commands/`:
+
+- `/ccp` — Reads the current prompt from `cprompt.md`
+- `/ccc` — Reads the current context from `ccontext.md`
+
+## CLI Options
+
+```
+npx wingman                  # Start normally (auto-assigns port)
+npx wingman --port 3000      # Use a specific port
+npx wingman --manual         # Manual mode (no PTY, file-based only)
+```
+
+## Development
 
 ```bash
-flutter config --enable-windows-desktop
+git clone <repo-url>
+cd wingman
+npm install
+npm run dev     # nodemon for auto-restart
 ```
 
-### 3. Create Project and Add Files
+## License
 
-1. Create a new Flutter project:
-
-```bash
-flutter create --platforms=windows wingman
-```
-
-2. Replace the default `lib/main.dart` with the `main.dart` file provided.
-
-3. Replace the default `pubspec.yaml` with the `pubspec.yaml` file provided.
-
-4. Create the `.cursor` directory in the project root and add the Cursor project context file:
-
-```bash
-mkdir .cursor
-# Add the cursor project file to this directory
-```
-
-### 4. Get Dependencies
-
-Run:
-
-```bash
-flutter pub get
-```
-
-### 5. Run the App
-
-```bash
-flutter run -d windows
-```
-
-## What This Test App Verifies
-
-1. **Windows Desktop Compilation**: Confirms Flutter can build and run Windows applications
-2. **Riverpod State Management**: Tests basic Riverpod provider functionality
-3. **File System Operations**: Tests reading and writing files to the local system
-4. **Directory Selection**: Tests the file picker for directory selection
-5. **UI Rendering**: Verifies the basic Material UI elements work correctly
-
-## Next Steps
-
-Once you've confirmed this test app runs correctly on your system, we can proceed with building the full Wingman application with all the specified features.
+MIT

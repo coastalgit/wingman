@@ -1,0 +1,16 @@
+# Dev / test
+testbed/
+temp/
+docs/
+.claude/
+.ai/
+
+# Git / CI
+.git/
+.github/
+.gitignore
+
+# Project docs (not needed in package)
+CLAUDE.md
+*.md
+!README.md
