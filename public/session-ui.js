@@ -334,20 +334,97 @@
     });
   });
 
-  // ─── File Browser ──────────────────────────────────
+  // ─── File Modal (upload + browser) ─────────────────
 
   const fileModal = document.getElementById('file-modal');
   const fileClose = document.getElementById('file-close');
+  const fileDropzone = document.getElementById('fileDropzone');
+  const filePickerInput = document.getElementById('filePickerInput');
+  const fileUploadResult = document.getElementById('fileUploadResult');
+  const fileUploadPath = document.getElementById('fileUploadPath');
+  const fileUploadCopyBtn = document.getElementById('fileUploadCopyBtn');
+  const fileBrowserToggle = document.getElementById('fileBrowserToggle');
+  const fileBrowserSection = document.getElementById('fileBrowserSection');
   const fileBrowserPath = document.getElementById('fileBrowserPath');
   const fileBrowserList = document.getElementById('fileBrowserList');
   const fileSelectedPath = document.getElementById('fileSelectedPath');
   const fileCopyBtn = document.getElementById('fileCopyBtn');
 
   let selectedFilePath = null;
+  let lastUploadedPath = null;
 
-  function closeFileModal() { fileModal.classList.add('hidden'); }
+  function closeFileModal() {
+    fileModal.classList.add('hidden');
+    fileUploadResult.classList.add('hidden');
+    fileBrowserSection.classList.add('hidden');
+  }
   fileClose.addEventListener('click', closeFileModal);
   fileModal.addEventListener('click', (e) => { if (e.target === fileModal) closeFileModal(); });
+
+  // ── Upload (drag-and-drop + file picker) ──────────
+
+  fileDropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileDropzone.classList.add('dragover');
+  });
+  fileDropzone.addEventListener('dragleave', () => {
+    fileDropzone.classList.remove('dragover');
+  });
+  fileDropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileDropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) uploadFile(file);
+  });
+
+  filePickerInput.addEventListener('change', () => {
+    const file = filePickerInput.files[0];
+    if (file) uploadFile(file);
+    filePickerInput.value = ''; // reset so same file can be picked again
+  });
+
+  async function uploadFile(file) {
+    fileDropzone.classList.add('uploading');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1]; // strip data:...;base64,
+      try {
+        const res = await fetch('/api/files/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: file.name, data: base64 }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          lastUploadedPath = result.path;
+          fileUploadPath.textContent = result.path;
+          fileUploadResult.classList.remove('hidden');
+          showToast('File saved: ' + result.name, 'success');
+        } else {
+          showToast('Upload failed', 'info');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Upload failed', 'info');
+      } finally {
+        fileDropzone.classList.remove('uploading');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileUploadCopyBtn.addEventListener('click', () => {
+    if (!lastUploadedPath) return;
+    copyPathAndClose(lastUploadedPath);
+  });
+
+  // ── Browse project files ──────────────────────────
+
+  fileBrowserToggle.addEventListener('click', () => {
+    const isHidden = fileBrowserSection.classList.contains('hidden');
+    fileBrowserSection.classList.toggle('hidden');
+    if (isHidden) loadDirectory('.');
+  });
 
   async function loadDirectory(dirPath) {
     fileBrowserList.textContent = 'Loading...';
@@ -364,7 +441,6 @@
       fileBrowserPath.textContent = data.path || '.';
       fileBrowserList.replaceChildren();
 
-      // Back button (if not at root)
       if (data.path && data.path !== '.') {
         const back = document.createElement('div');
         back.className = 'file-browser-item dir';
@@ -418,28 +494,31 @@
     }
   }
 
-  addFileBtnEl.addEventListener('click', () => {
-    fileModal.classList.remove('hidden');
-    loadDirectory('.');
+  fileCopyBtn.addEventListener('click', () => {
+    if (!selectedFilePath) return;
+    copyPathAndClose(selectedFilePath);
   });
 
-  fileCopyBtn.addEventListener('click', async () => {
-    if (!selectedFilePath) return;
-    try {
-      await navigator.clipboard.writeText(selectedFilePath);
-      showToast('Path copied: ' + selectedFilePath, 'success');
-      closeFileModal();
-    } catch {
-      // Fallback: insert into prompt editor directly
+  // ── Shared: copy path to clipboard or insert ──────
+
+  function copyPathAndClose(filePath) {
+    navigator.clipboard.writeText(filePath).then(() => {
+      showToast('Path copied: ' + filePath, 'success');
+    }).catch(() => {
+      // Fallback: insert into prompt editor
       const pos = promptEditorEl.selectionStart;
       const before = promptEditorEl.value.substring(0, pos);
       const after = promptEditorEl.value.substring(promptEditorEl.selectionEnd);
-      promptEditorEl.value = before + selectedFilePath + after;
-      promptEditorEl.selectionStart = promptEditorEl.selectionEnd = pos + selectedFilePath.length;
+      promptEditorEl.value = before + filePath + after;
+      promptEditorEl.selectionStart = promptEditorEl.selectionEnd = pos + filePath.length;
       updatePromptCounts();
       showToast('Path inserted into prompt', 'info');
-      closeFileModal();
-    }
+    });
+    closeFileModal();
+  }
+
+  addFileBtnEl.addEventListener('click', () => {
+    fileModal.classList.remove('hidden');
   });
 
   // ─── Keyboard Shortcuts ─────────────────────────────
