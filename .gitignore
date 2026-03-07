@@ -6,6 +6,16 @@ node_modules/
 *.log
 .vscode/
 .idea/
+*.iml
+
+# Flutter / Dart (legacy — project is now Node.js)
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# Runtime artifacts
+.ai/
 
 # Testbed (throwaway UAT copy)
 testbed/node_modules/
