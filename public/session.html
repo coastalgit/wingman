@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Wingman</title>
+  <!-- Prevent white flash before CSS loads -->
+  <style>html,body{background:#1a2035;}</style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.css" />
   <link rel="stylesheet" href="/session.css" />
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
@@ -44,6 +45,9 @@
     </div>
   </header>
 
+  <!-- YOLO Mode Banner -->
+  <div id="yolo-banner" class="yolo-banner hidden"></div>
+
   <!-- Main layout: editor panels (top) + terminal (bottom) -->
   <div class="app-body">
     <main class="main-content">
@@ -67,9 +71,10 @@
               disabled
               placeholder="Write your project context in Markdown..."></textarea>
             <div class="context-actions">
-              <select class="template-select" id="templateSelect" disabled>
-                <option value="">Load template...</option>
-              </select>
+              <div class="template-picker" id="templatePicker">
+                <button class="template-btn" id="templateBtn" disabled>Templates ▾</button>
+                <div class="template-dropdown hidden" id="templateDropdown"></div>
+              </div>
               <button class="send-btn" id="sendContextBtn" disabled>
                 Send context
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -79,16 +84,11 @@
             </div>
           </div>
           <div class="panel-gutter"></div>
-          <div class="panel-pane preview-pane">
-            <div class="pane-toolbar pane-toolbar--preview">
-              <span class="pane-label">Preview</span>
-              <span class="preview-tag">markdown</span>
+          <div class="panel-pane ctx-history-pane">
+            <div class="pane-toolbar pane-toolbar--history">
+              <span class="pane-label">Sent History</span>
             </div>
-            <div class="preview-surface">
-              <div class="markdown-preview" id="contextPreview">
-                <p class="preview-empty">Start typing to see a live preview...</p>
-              </div>
-            </div>
+            <div class="ctx-history-list" id="ctxHistoryList"></div>
           </div>
         </div>
       </div>
@@ -103,6 +103,7 @@
               <input type="text" class="search-input" id="historySearch" placeholder="Search...">
             </div>
             <div class="history-list" id="historyList"></div>
+            <div class="history-footer" id="historyFooter">0 prompts</div>
           </div>
           <div class="panel-gutter"></div>
           <!-- Editor RIGHT -->

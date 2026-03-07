@@ -54,13 +54,19 @@ ws.onmessage = (event) => {
       termStatus.textContent =
         msg.status === "resumed" ? "reconnected" : "connected";
 
-    // Replay history
-    if (msg.history && msg.history.length > 0) {
-      msg.history.forEach((chunk) => term.write(chunk));
+    // YOLO banner
+    const yoloBanner = document.getElementById("yolo-banner");
+    if (yoloBanner) {
+      if (msg.yolo) {
+        yoloBanner.textContent = "YOLO MODE — Claude will execute without confirmation";
+        yoloBanner.classList.remove("hidden");
+      } else {
+        yoloBanner.classList.add("hidden");
+      }
     }
 
-    // Notify session-ui after terminal has had a chance to paint
-    requestAnimationFrame(() => {
+    // Replay history, then fire ready only after xterm has finished rendering
+    const fireReady = () => {
       requestAnimationFrame(() => {
         window.dispatchEvent(
           new CustomEvent("wingman-session-ready", {
@@ -68,7 +74,19 @@ ws.onmessage = (event) => {
           }),
         );
       });
-    });
+    };
+
+    if (msg.history && msg.history.length > 0) {
+      let remaining = msg.history.length;
+      msg.history.forEach((chunk) => {
+        term.write(chunk, () => {
+          remaining--;
+          if (remaining === 0) fireReady();
+        });
+      });
+    } else {
+      fireReady();
+    }
 
     console.log(
       "Connected to session " + msg.sessionId + " (status: " + msg.status + ")",
