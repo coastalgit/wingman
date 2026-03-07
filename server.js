@@ -222,6 +222,15 @@ app.get('/api/config', (req, res) => {
   res.json(sessionManager.loadConfig());
 });
 
+// REST API: Update settings
+app.patch('/api/settings', (req, res) => {
+  const updates = (req.body && typeof req.body === 'object') ? req.body : {};
+  const config = sessionManager.loadConfig();
+  config.settings = { ...(config.settings || {}), ...updates };
+  sessionManager.saveConfig(config);
+  res.json({ status: 'ok', settings: config.settings });
+});
+
 // REST API: Shutdown Wingman
 app.post('/api/shutdown', (req, res) => {
   res.json({ status: 'shutting-down' });
@@ -389,6 +398,7 @@ wss.on('connection', (ws) => {
             createdAt: session.createdAt,
             history,
             yolo: !!(session.flags && session.flags.yolo),
+            withChrome: !!(session.flags && session.flags.withChrome),
           }));
         } else {
           ws.send(JSON.stringify({
