@@ -28,6 +28,7 @@
   const statusMessageEl = document.getElementById('statusMessage');
   const toastContainerEl = document.getElementById('toastContainer');
   const addFileBtnEl = document.getElementById('addFileBtn');
+  const attachCopyBtnEl = document.getElementById('attachCopyBtn');
 
   // ─── State ──────────────────────────────────────────
 
@@ -399,6 +400,9 @@
           lastUploadedPath = result.path;
           fileUploadPath.textContent = result.path;
           fileUploadResult.classList.remove('hidden');
+          // Show the copy button beside the attach button
+          attachCopyBtnEl.classList.remove('hidden');
+          attachCopyBtnEl.title = 'Copy: ' + result.path;
           showToast('File saved: ' + result.name, 'success');
         } else {
           showToast('Upload failed', 'info');
@@ -416,6 +420,23 @@
   fileUploadCopyBtn.addEventListener('click', () => {
     if (!lastUploadedPath) return;
     copyPathAndClose(lastUploadedPath);
+  });
+
+  // Attach copy button (beside attach btn in prompt actions) — copies last attached path
+  attachCopyBtnEl.addEventListener('click', () => {
+    if (!lastUploadedPath) return;
+    navigator.clipboard.writeText(lastUploadedPath).then(() => {
+      showToast('Path copied: ' + lastUploadedPath, 'success');
+    }).catch(() => {
+      // Fallback: insert into prompt editor
+      const pos = promptEditorEl.selectionStart;
+      const before = promptEditorEl.value.substring(0, pos);
+      const after = promptEditorEl.value.substring(promptEditorEl.selectionEnd);
+      promptEditorEl.value = before + lastUploadedPath + after;
+      promptEditorEl.selectionStart = promptEditorEl.selectionEnd = pos + lastUploadedPath.length;
+      updatePromptCounts();
+      showToast('Path inserted into prompt', 'info');
+    });
   });
 
   // ── Browse project files ──────────────────────────
@@ -502,6 +523,9 @@
   // ── Shared: copy path to clipboard or insert ──────
 
   function copyPathAndClose(filePath) {
+    lastUploadedPath = filePath; // track for attach copy button
+    attachCopyBtnEl.classList.remove('hidden');
+    attachCopyBtnEl.title = 'Copy: ' + filePath;
     navigator.clipboard.writeText(filePath).then(() => {
       showToast('Path copied: ' + filePath, 'success');
     }).catch(() => {
