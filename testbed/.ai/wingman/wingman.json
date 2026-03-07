@@ -1,6 +1,7 @@
 {
   "templates": {
-    "default": "# Project Context\n\n## Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n"
+    "default": "# Project Context\n\n## Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n",
+    "seshmemLoader": "# Session Memory Loader\n\nTo restore context from a previous session, run the following in your Claude Code terminal:\n\n```\n/seshmem:load\n```\n\n## Load Options\n- `/seshmem:load` — loads the most recent checkpoint\n- `/seshmem:load 3` — loads the last 3 checkpoints (shows progression)\n- `/seshmem:load <filename>` — loads a specific checkpoint by name (without .md)\n\n## Extra Seshmem Load Arguments\n> Add any additional context or instructions for the session memory load here.\n"
   },
   "settings": {}
 }

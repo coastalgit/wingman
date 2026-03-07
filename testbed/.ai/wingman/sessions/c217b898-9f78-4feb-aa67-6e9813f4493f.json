@@ -4,5 +4,7 @@
   "createdAt": "2026-03-05T20:12:48.468Z",
   "closed": false,
   "promptHistory": [],
-  "contextText": ""
+  "contextHistory": [],
+  "contextText": "",
+  "flags": {}
 }

@@ -21,7 +21,23 @@
       "text": "What sport has a \"stick\"",
       "timestamp": "2026-03-06T02:39:23.468Z",
       "tokens": 6
+    },
+    {
+      "id": "1772841186501",
+      "text": "What sport has a \"sail\"",
+      "timestamp": "2026-03-06T23:53:06.501Z",
+      "tokens": 6
+    },
+    {
+      "id": "1772841206892",
+      "text": "What sport has a \"peg\"",
+      "timestamp": "2026-03-06T23:53:26.892Z",
+      "tokens": 6
     }
   ],
-  "contextText": "This is about sports"
+  "contextHistory": [],
+  "contextText": "This is about sports",
+  "flags": {
+    "yolo": true
+  }
 }

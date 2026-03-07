@@ -25,7 +25,8 @@
       "Bash(cp:*)",
       "Bash(mkdir:*)",
       "WebFetch(domain:tweakcn.com)",
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

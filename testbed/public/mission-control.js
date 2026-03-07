@@ -14,7 +14,7 @@ fetch("/api/version")
   .then((data) => {
     if (!data.version) return;
     const parts = data.version.split(".");
-    const label = "Wingman v" + parts[0] + "." + parts[1];
+    const label = "Wingman v" + parts[0] + "." + parts[1] + " build " + (data.build || 0);
     const el = document.getElementById("statusProject");
     if (el) el.textContent = label;
   })
@@ -123,6 +123,51 @@ newSessionBtn.addEventListener("click", async () => {
   }
 });
 
+// ─── Settings Modal ─────────────────────────────────
+
+const settingsBtn = document.getElementById("settings-btn");
+const settingsModal = document.getElementById("settings-modal");
+const settingsClose = document.getElementById("settings-close");
+const settingsCancel = document.getElementById("settings-cancel");
+const settingsSave = document.getElementById("settings-save");
+const defaultFileDirInput = document.getElementById("defaultFileDirInput");
+
+settingsBtn.addEventListener("click", () => {
+  fetch("/api/config")
+    .then(r => r.json())
+    .then(cfg => {
+      const dir = (cfg.settings && cfg.settings.defaultFileDir) || "docs/promptfiles/";
+      defaultFileDirInput.value = dir;
+    })
+    .catch(() => {});
+  settingsModal.classList.remove("hidden");
+});
+
+function closeSettingsModal() {
+  settingsModal.classList.add("hidden");
+}
+
+settingsClose.addEventListener("click", closeSettingsModal);
+settingsCancel.addEventListener("click", closeSettingsModal);
+settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) closeSettingsModal(); });
+
+settingsSave.addEventListener("click", async () => {
+  const dir = defaultFileDirInput.value.trim() || "docs/promptfiles/";
+  settingsSave.disabled = true;
+  try {
+    await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultFileDir: dir }),
+    });
+    closeSettingsModal();
+  } catch (err) {
+    console.error("Failed to save settings:", err);
+  } finally {
+    settingsSave.disabled = false;
+  }
+});
+
 // Exit Wingman button
 exitBtn.addEventListener("click", async () => {
   exitBtn.disabled = true;
@@ -131,6 +176,168 @@ exitBtn.addEventListener("click", async () => {
     await fetch("/api/shutdown", { method: "POST" });
   } catch (err) {
     // Server is shutting down, connection errors are expected
+  }
+});
+
+// ─── Args Editor Modal ──────────────────────────────
+
+const argsModal = document.getElementById("args-modal");
+const argsClose = document.getElementById("args-close");
+const argsCancel = document.getElementById("args-cancel");
+const argsSave = document.getElementById("args-save");
+const argsFlagsList = document.getElementById("argsFlagsList");
+const argsStatus = document.getElementById("argsStatus");
+const argsModalTitle = document.getElementById("argsModalTitle");
+
+let argsSessionId = null;
+let claudeFlags = null;
+
+function closeArgsModal() { argsModal.classList.add("hidden"); }
+argsClose.addEventListener("click", closeArgsModal);
+argsCancel.addEventListener("click", closeArgsModal);
+argsModal.addEventListener("click", (e) => { if (e.target === argsModal) closeArgsModal(); });
+
+async function openArgsModal(sessionId, sessionDesc) {
+  argsSessionId = sessionId;
+  argsModalTitle.textContent = "Arguments — " + (sessionDesc || "Session");
+  argsStatus.textContent = "";
+  argsModal.classList.remove("hidden");
+
+  // Fetch flags definition (cached after first call)
+  if (!claudeFlags) {
+    argsFlagsList.textContent = "Loading flags...";
+    try {
+      const res = await fetch("/api/claude-flags");
+      claudeFlags = await res.json();
+    } catch { claudeFlags = []; }
+  }
+
+  // Load existing customArgs for this session
+  let existingArgs = {};
+  try {
+    const res = await fetch("/api/sessions/" + sessionId);
+    // We get the full session list and find ours
+  } catch {}
+  // Get flags from session data via the sessions list
+  try {
+    const res = await fetch("/api/sessions");
+    const sessions = await res.json();
+    const sess = sessions.find(s => s.id === sessionId);
+    if (sess && sess.flags && sess.flags.customArgs) existingArgs = sess.flags.customArgs;
+  } catch {}
+
+  renderArgsFlags(existingArgs);
+}
+
+function renderArgsFlags(existingArgs) {
+  argsFlagsList.replaceChildren();
+  if (!claudeFlags || claudeFlags.length === 0) {
+    argsFlagsList.textContent = "No flags available";
+    return;
+  }
+
+  claudeFlags.forEach(flag => {
+    const row = document.createElement("div");
+    row.className = "args-flag-row";
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "args-flag-check";
+    check.dataset.flag = flag.long;
+
+    const info = document.createElement("div");
+    info.className = "args-flag-info";
+
+    const name = document.createElement("div");
+    name.className = "args-flag-name";
+    name.textContent = flag.long + (flag.short ? " (" + flag.short + ")" : "");
+    info.appendChild(name);
+
+    const desc = document.createElement("div");
+    desc.className = "args-flag-desc";
+    desc.textContent = flag.desc;
+    info.appendChild(desc);
+
+    let valueInput = null;
+    if (flag.value || flag.choices) {
+      const valueDiv = document.createElement("div");
+      valueDiv.className = "args-flag-value";
+      valueDiv.style.display = "none";
+
+      if (flag.choices) {
+        valueInput = document.createElement("select");
+        const emptyOpt = document.createElement("option");
+        emptyOpt.value = "";
+        emptyOpt.textContent = "— select —";
+        valueInput.appendChild(emptyOpt);
+        flag.choices.forEach(c => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c;
+          valueInput.appendChild(opt);
+        });
+      } else {
+        valueInput = document.createElement("input");
+        valueInput.type = "text";
+        valueInput.placeholder = flag.value || "value";
+      }
+      valueInput.dataset.flag = flag.long;
+      valueDiv.appendChild(valueInput);
+      info.appendChild(valueDiv);
+
+      check.addEventListener("change", () => {
+        valueDiv.style.display = check.checked ? "block" : "none";
+        if (check.checked && valueInput.tagName === "INPUT") valueInput.focus();
+      });
+    }
+
+    // Pre-fill from existing args
+    const existing = existingArgs[flag.long];
+    if (existing !== undefined) {
+      check.checked = true;
+      if (valueInput) {
+        valueInput.parentElement.style.display = "block";
+        if (typeof existing === "string") valueInput.value = existing;
+      }
+    }
+
+    row.appendChild(check);
+    row.appendChild(info);
+    argsFlagsList.appendChild(row);
+  });
+}
+
+argsSave.addEventListener("click", async () => {
+  if (!argsSessionId) return;
+  const customArgs = {};
+  argsFlagsList.querySelectorAll(".args-flag-check:checked").forEach(check => {
+    const flag = check.dataset.flag;
+    const row = check.closest(".args-flag-row");
+    const input = row.querySelector(".args-flag-value input, .args-flag-value select");
+    if (input && input.value.trim()) {
+      customArgs[flag] = input.value.trim();
+    } else if (!input) {
+      customArgs[flag] = true;
+    } else {
+      customArgs[flag] = true;
+    }
+  });
+
+  argsSave.disabled = true;
+  try {
+    await fetch("/api/sessions/" + argsSessionId + "/flags", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customArgs }),
+    });
+    const count = Object.keys(customArgs).length;
+    argsStatus.textContent = count > 0 ? count + " flag" + (count !== 1 ? "s" : "") + " saved" : "Flags cleared";
+    setTimeout(closeArgsModal, 600);
+  } catch (err) {
+    console.error("Failed to save args:", err);
+    argsStatus.textContent = "Save failed";
+  } finally {
+    argsSave.disabled = false;
   }
 });
 
@@ -157,6 +364,34 @@ function renderSessions(sessions) {
     const isActive = session.status === "active";
     const name = session.description || "Unnamed session";
 
+    // ── Outer wrapper (bin outside card) ──────────────────
+    const wrapper = document.createElement("div");
+    wrapper.className = "card-wrapper";
+
+    // Delete button — outside card, to its left
+    const outerLeft = document.createElement("div");
+    outerLeft.className = "card-outer-left";
+    if (!isActive) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "btn-icon btn-delete";
+      deleteBtn.title = "Delete session";
+      deleteBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+      deleteBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete session "' + name + '"?\n\nThis cannot be undone.')) return;
+        deleteBtn.disabled = true;
+        try {
+          await fetch("/api/sessions/" + session.id + "/delete", { method: "DELETE" });
+        } catch (err) {
+          console.error("Failed to delete session:", err);
+          deleteBtn.disabled = false;
+        }
+      });
+      outerLeft.appendChild(deleteBtn);
+    }
+    wrapper.appendChild(outerLeft);
+
     const card = document.createElement("div");
     card.className = "session-card " + session.status + (session.id === selectedSessionId ? " selected" : "");
     card.addEventListener("click", () => {
@@ -168,36 +403,11 @@ function renderSessions(sessions) {
       window.open("/session/" + session.id, "_blank");
     });
 
-    // Left: delete button (non-active sessions only)
-    const leftZone = document.createElement("div");
-    leftZone.className = "session-left";
-    if (!isActive) {
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "btn-icon btn-delete";
-      deleteBtn.title = "Delete session";
-      deleteBtn.innerHTML =
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
-      deleteBtn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        if (
-          !confirm('Delete session "' + name + '"?\n\nThis cannot be undone.')
-        )
-          return;
-        deleteBtn.disabled = true;
-        try {
-          await fetch("/api/sessions/" + session.id + "/delete", {
-            method: "DELETE",
-          });
-        } catch (err) {
-          console.error("Failed to delete session:", err);
-          deleteBtn.disabled = false;
-        }
-      });
-      leftZone.appendChild(deleteBtn);
-    }
-    card.appendChild(leftZone);
+    // ── Top section ───────────────────────────────────────
+    const cardTop = document.createElement("div");
+    cardTop.className = "card-top";
 
-    // Info
+    // Session info
     const info = document.createElement("div");
     info.className = "session-info";
 
@@ -211,29 +421,30 @@ function renderSessions(sessions) {
     const d = new Date(session.createdAt);
     meta.textContent =
       d.toLocaleDateString([], { month: "short", day: "numeric" }) +
-      " " +
+      " · " +
       d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     info.appendChild(meta);
+    cardTop.appendChild(info);
 
-    card.appendChild(info);
-
-    // Actions — Open is always available; Stop only when Claude is running
+    // Actions
     const actions = document.createElement("div");
     actions.className = "session-actions";
 
     const openBtn = document.createElement("button");
     openBtn.className = "btn open";
     openBtn.textContent = "Open";
-    openBtn.addEventListener("click", () =>
-      window.open("/session/" + session.id, "_blank"),
-    );
+    openBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.open("/session/" + session.id, "_blank");
+    });
     actions.appendChild(openBtn);
 
     if (isActive) {
       const stopBtn = document.createElement("button");
       stopBtn.className = "btn danger";
       stopBtn.textContent = "Stop";
-      stopBtn.addEventListener("click", async () => {
+      stopBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
         stopBtn.disabled = true;
         try {
           await fetch("/api/sessions/" + session.id, { method: "DELETE" });
@@ -245,7 +456,72 @@ function renderSessions(sessions) {
       actions.appendChild(stopBtn);
     }
 
-    card.appendChild(actions);
-    sessionsList.appendChild(card);
+    cardTop.appendChild(actions);
+    card.appendChild(cardTop);
+
+    // ── Separator ─────────────────────────────────────────
+    const sep = document.createElement("div");
+    sep.className = "card-separator";
+    card.appendChild(sep);
+
+    // ── Bottom section (flags) ────────────────────────────
+    const cardBottom = document.createElement("div");
+    cardBottom.className = "card-bottom";
+    cardBottom.addEventListener("click", (e) => e.stopPropagation());
+
+    // YOLO flag
+    const yoloLabel = document.createElement("label");
+    yoloLabel.className = "flag-label yolo";
+    const yoloCheck = document.createElement("input");
+    yoloCheck.type = "checkbox";
+    yoloCheck.checked = !!(session.flags && session.flags.yolo);
+    yoloCheck.addEventListener("change", async () => {
+      await fetch("/api/sessions/" + session.id + "/flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yolo: yoloCheck.checked }),
+      }).catch(() => {});
+    });
+    yoloLabel.appendChild(yoloCheck);
+    yoloLabel.appendChild(document.createTextNode(" YOLO"));
+    cardBottom.appendChild(yoloLabel);
+
+    // With Chrome flag
+    const chromeLabel = document.createElement("label");
+    chromeLabel.className = "flag-label chrome";
+    const chromeCheck = document.createElement("input");
+    chromeCheck.type = "checkbox";
+    chromeCheck.checked = !!(session.flags && session.flags.withChrome);
+    chromeCheck.addEventListener("change", async () => {
+      await fetch("/api/sessions/" + session.id + "/flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ withChrome: chromeCheck.checked }),
+      }).catch(() => {});
+    });
+    chromeLabel.appendChild(chromeCheck);
+    chromeLabel.appendChild(document.createTextNode(" Chrome"));
+    cardBottom.appendChild(chromeLabel);
+
+    // Spacer
+    const spacer = document.createElement("div");
+    spacer.style.flex = "1";
+    cardBottom.appendChild(spacer);
+
+    // Args button
+    const argsBtn = document.createElement("button");
+    const hasArgs = session.flags && session.flags.customArgs && Object.keys(session.flags.customArgs).length > 0;
+    argsBtn.className = "args-btn" + (hasArgs ? " has-args" : "");
+    argsBtn.title = hasArgs ? Object.keys(session.flags.customArgs).join(", ") : "Edit session arguments";
+    argsBtn.textContent = "⋯";
+    argsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openArgsModal(session.id, session.description);
+    });
+    cardBottom.appendChild(argsBtn);
+
+    card.appendChild(cardBottom);
+    wrapper.appendChild(card);
+    sessionsList.appendChild(wrapper);
   });
 }

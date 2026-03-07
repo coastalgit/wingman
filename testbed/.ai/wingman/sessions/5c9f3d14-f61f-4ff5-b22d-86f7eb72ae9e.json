@@ -39,7 +39,66 @@
       "text": "What couhntry borders finland",
       "timestamp": "2026-03-06T14:43:43.962Z",
       "tokens": 8
+    },
+    {
+      "id": "1772845032199",
+      "text": "What couhntry borders sweden",
+      "timestamp": "2026-03-07T00:57:12.199Z",
+      "tokens": 7
+    },
+    {
+      "id": "1772845413794",
+      "text": "What couhntry borders sweden",
+      "timestamp": "2026-03-07T01:03:33.794Z",
+      "tokens": 7
+    },
+    {
+      "id": "1772845882583",
+      "text": "What couhntry makes the smelliest cheese",
+      "timestamp": "2026-03-07T01:11:22.583Z",
+      "tokens": 10
+    },
+    {
+      "id": "1772850023915",
+      "text": "What couhntry mhas teh best golfer",
+      "timestamp": "2026-03-07T02:20:23.915Z",
+      "tokens": 9
+    },
+    {
+      "id": "1772850974181",
+      "text": "What couhntry mhas teh best rugby un ion player and waht is ibn this pucture docs/promptfiles/bluesmandevil.png",
+      "timestamp": "2026-03-07T02:36:14.181Z",
+      "tokens": 28
     }
   ],
-  "contextText": "This is abotu countries"
+  "contextHistory": [
+    {
+      "id": "1772845860173",
+      "text": "This is abotu cheeses",
+      "timestamp": "2026-03-07T01:11:00.173Z",
+      "tokens": 6
+    },
+    {
+      "id": "1772849999056",
+      "text": "This is abotu sports",
+      "timestamp": "2026-03-07T02:19:59.056Z",
+      "tokens": 5
+    },
+    {
+      "id": "1772850892720",
+      "text": "This is abotu sports",
+      "timestamp": "2026-03-07T02:34:52.720Z",
+      "tokens": 5
+    },
+    {
+      "id": "1772851229706",
+      "text": "This is abotu sports",
+      "timestamp": "2026-03-07T02:40:29.706Z",
+      "tokens": 5
+    }
+  ],
+  "contextText": "This is abotu sports",
+  "flags": {
+    "yolo": true
+  }
 }

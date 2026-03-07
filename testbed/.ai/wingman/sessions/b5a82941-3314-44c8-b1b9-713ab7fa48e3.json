@@ -21,7 +21,15 @@
       "text": "what is the capital of slovenia",
       "timestamp": "2026-03-06T00:02:41.075Z",
       "tokens": 8
+    },
+    {
+      "id": "1772841337317",
+      "text": "what is the capital of spain",
+      "timestamp": "2026-03-06T23:55:37.318Z",
+      "tokens": 7
     }
   ],
-  "contextText": ""
+  "contextHistory": [],
+  "contextText": "",
+  "flags": {}
 }

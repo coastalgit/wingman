@@ -59,8 +59,8 @@ if (!BASH_PATH) {
 
 const app = express();
 
-// JSON body parsing for POST endpoints
-app.use(express.json());
+// JSON body parsing for POST endpoints (10MB limit for file uploads)
+app.use(express.json({ limit: '10mb' }));
 
 // --- Custom routes (BEFORE express.static to avoid index.html interception) ---
 
@@ -81,7 +81,8 @@ app.get('/api/mode', (req, res) => {
 
 // REST API: App version (from package.json)
 app.get('/api/version', (req, res) => {
-  res.json({ version: require('./package.json').version });
+  const pkg = require('./package.json');
+  res.json({ version: pkg.version, build: pkg.build || 0 });
 });
 
 // REST API: List all sessions with status
@@ -153,9 +154,9 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
   sessionManager.appendPromptHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    // Write the prompt text directly into the PTY so it's visible in the terminal.
-    // Ctrl+U clears any pending input, then the prompt text is typed and submitted.
-    session.ptyProcess.write('\x15' + text + '\r');
+    // Send /ccp slash command to read the prompt file we just saved.
+    // Ctrl+U clears any pending input first.
+    session.ptyProcess.write('\x15/ccp\r');
   }
 
   res.json({ status: 'sent', entry });
@@ -168,7 +169,7 @@ app.get('/api/sessions/:id/context', (req, res) => {
   res.json({ text: sessionManager.loadContext(req.params.id) });
 });
 
-// REST API: Send context — save to shared file + per-session, inject /ccc into PTY
+// REST API: Send context — save to shared file + per-session, inject /ccc into PTY, append to history
 app.post('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -176,12 +177,26 @@ app.post('/api/sessions/:id/context', (req, res) => {
   const text = (req.body && req.body.text) || '';
   sessionManager.saveContext(req.params.id, text);
 
+  const entry = {
+    id: Date.now().toString(),
+    text,
+    timestamp: new Date().toISOString(),
+    tokens: Math.ceil(text.length / 4),
+  };
+  sessionManager.appendContextHistory(req.params.id, entry);
+
   if (session.ptyProcess) {
-    session.ptyProcess.write('\x15/ccc');
-    setTimeout(() => session.ptyProcess.write('\r'), 50);
+    session.ptyProcess.write('\x15/ccc\r');
   }
 
-  res.json({ status: 'sent' });
+  res.json({ status: 'sent', entry });
+});
+
+// REST API: Get context history for a session
+app.get('/api/sessions/:id/context/history', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json(sessionManager.loadContextHistory(req.params.id));
 });
 
 // REST API: Get prompt history for a session
@@ -191,9 +206,137 @@ app.get('/api/sessions/:id/history', (req, res) => {
   res.json(sessionManager.loadPromptHistory(req.params.id));
 });
 
+// REST API: Update session flags (yolo, withChrome, etc.)
+app.patch('/api/sessions/:id/flags', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const flags = (req.body && typeof req.body === 'object') ? req.body : {};
+  sessionManager.updateFlags(req.params.id, flags);
+  broadcastSessionUpdate();
+  res.json({ status: 'ok', flags: session.flags });
+});
+
 // REST API: Get config (templates, settings)
 app.get('/api/config', (req, res) => {
   res.json(sessionManager.loadConfig());
+});
+
+// REST API: Update settings
+app.patch('/api/settings', (req, res) => {
+  const updates = (req.body && typeof req.body === 'object') ? req.body : {};
+  const config = sessionManager.loadConfig();
+  config.settings = { ...(config.settings || {}), ...updates };
+  sessionManager.saveConfig(config);
+  res.json({ status: 'ok', settings: config.settings });
+});
+
+// REST API: Parsed claude CLI flags (for args editor)
+let cachedClaudeFlags = null;
+
+function parseClaudeFlags(helpText) {
+  const flags = [];
+  const lines = helpText.split('\n');
+  let inOptions = false;
+  const skip = new Set([
+    '--help', '--version', '--print', '--output-format', '--input-format',
+    '--json-schema', '--max-budget-usd', '--include-partial-messages',
+    '--replay-user-messages', '--file', '--fallback-model', '--no-session-persistence',
+    '--session-id', '--from-pr', '--strict-mcp-config', '--tmux',
+    '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions',
+    '--chrome', '--no-chrome',
+  ]);
+
+  for (const line of lines) {
+    if (line.trim() === 'Options:') { inOptions = true; continue; }
+    if (/^Commands:/.test(line.trim())) break;
+    if (!inOptions || !/^\s{2,}-/.test(line)) continue;
+
+    const m = line.match(/^\s+(?:(-\w),\s+)?(--[\w-]+)(?:,\s+--[\w-]+)?(?:\s+(<[^>]+>|\[[^\]]+\]))?\s{2,}(.+)/);
+    if (!m) continue;
+
+    const long = m[2];
+    if (skip.has(long)) continue;
+
+    const short = m[1] || undefined;
+    const valueRaw = m[3] || undefined;
+    const value = valueRaw ? valueRaw.replace(/[<>\[\]]/g, '') : undefined;
+    const desc = m[4].trim();
+
+    let choices;
+    const cm = desc.match(/\(choices:\s*([^)]+)\)/);
+    if (cm) choices = cm[1].split(',').map(c => c.trim().replace(/"/g, ''));
+
+    flags.push({ long, short, value, choices, desc });
+  }
+  return flags;
+}
+
+app.get('/api/claude-flags', (req, res) => {
+  if (cachedClaudeFlags) return res.json(cachedClaudeFlags);
+  try {
+    // Use execFileSync to avoid cmd.exe shell wrapper on Windows
+    const helpText = require('child_process').execFileSync(BASH_PATH, ['-c', 'claude --help'], { encoding: 'utf8', timeout: 10000 });
+    cachedClaudeFlags = parseClaudeFlags(helpText);
+    res.json(cachedClaudeFlags);
+  } catch (err) {
+    console.error('Failed to parse claude --help:', err.message);
+    res.json([]);
+  }
+});
+
+// REST API: List files in a directory (for file browser)
+app.get('/api/files', (req, res) => {
+  const relPath = req.query.path || '.';
+  const absPath = path.resolve(process.cwd(), relPath);
+  const cwd = process.cwd().replace(/\\/g, '/');
+  const abs = absPath.replace(/\\/g, '/');
+
+  if (!abs.startsWith(cwd)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  try {
+    const entries = fs.readdirSync(absPath, { withFileTypes: true });
+    const items = entries
+      .filter(e => !e.name.startsWith('.') && e.name !== 'node_modules')
+      .map(e => ({
+        name: e.name,
+        type: e.isDirectory() ? 'dir' : 'file',
+        path: path.relative(process.cwd(), path.join(absPath, e.name)).replace(/\\/g, '/'),
+      }))
+      .sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    res.json({ path: path.relative(process.cwd(), absPath).replace(/\\/g, '/') || '.', items });
+  } catch (err) {
+    res.status(404).json({ error: 'Directory not found' });
+  }
+});
+
+// REST API: Upload a file to the project (saves to defaultFileDir)
+app.post('/api/files/upload', (req, res) => {
+  const { name, data } = req.body || {};
+  if (!name || !data) return res.status(400).json({ error: 'name and data (base64) required' });
+
+  // Sanitise filename — strip path separators
+  const safeName = path.basename(name).replace(/[<>:"|?*]/g, '_');
+  if (!safeName) return res.status(400).json({ error: 'Invalid filename' });
+
+  const config = sessionManager.loadConfig();
+  const destDir = (config.settings && config.settings.defaultFileDir) || 'docs/promptfiles';
+  const absDir = path.resolve(process.cwd(), destDir);
+
+  // Security: ensure within project
+  if (!absDir.replace(/\\/g, '/').startsWith(process.cwd().replace(/\\/g, '/'))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  fs.mkdirSync(absDir, { recursive: true });
+  const destPath = path.join(absDir, safeName);
+  fs.writeFileSync(destPath, Buffer.from(data, 'base64'));
+
+  const relPath = path.relative(process.cwd(), destPath).replace(/\\/g, '/');
+  res.json({ path: relPath, name: safeName });
 });
 
 // REST API: Shutdown Wingman
@@ -232,8 +375,30 @@ function broadcastSessionUpdate() {
 
 // Spawn a PTY and wire up onData/onExit for a session that already exists in SessionManager.
 // Used both for new sessions (POST /api/sessions) and reconnecting to reconnectable sessions.
+function buildClaudeCommand(session) {
+  const parts = ['claude'];
+  if (session.flags) {
+    if (session.flags.yolo) parts.push('--dangerously-skip-permissions');
+    if (session.flags.withChrome) parts.push('--chrome');
+    const args = session.flags.customArgs;
+    if (args && typeof args === 'object') {
+      for (const [flag, val] of Object.entries(args)) {
+        if (val === true) parts.push(flag);
+        else if (typeof val === 'string' && val.trim()) {
+          parts.push(flag, "'" + val.replace(/'/g, "'\\''") + "'");
+        }
+      }
+    }
+  }
+  return parts.join(' ');
+}
+
 function spawnAndWirePty(sessionId) {
-  const ptyProcess = pty.spawn(BASH_PATH, ['-c', 'claude'], {
+  const session = sessionManager.getSession(sessionId);
+  const cmd = buildClaudeCommand(session);
+  console.log(`Session ${sessionId}: spawning: ${cmd}`);
+
+  const ptyProcess = pty.spawn(BASH_PATH, ['-c', cmd], {
     name: 'xterm-256color',
     cols: 120,
     rows: 30,
@@ -246,7 +411,6 @@ function spawnAndWirePty(sessionId) {
   });
 
   // Wire the new PTY into the existing session object
-  const session = sessionManager.getSession(sessionId);
   session.ptyProcess = ptyProcess;
   session.closed = false;
   session.primaryWs = null; // reset primary on new PTY
@@ -362,6 +526,8 @@ wss.on('connection', (ws) => {
             description: session.description || 'Claude Code session',
             createdAt: session.createdAt,
             history,
+            yolo: !!(session.flags && session.flags.yolo),
+            withChrome: !!(session.flags && session.flags.withChrome),
           }));
         } else {
           ws.send(JSON.stringify({

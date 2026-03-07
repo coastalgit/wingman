@@ -7,10 +7,10 @@
   // ─── DOM References ─────────────────────────────────
 
   const contextEditorEl = document.getElementById('contextEditor');
-  const contextPreviewEl = document.getElementById('contextPreview');
   const contextCharCountEl = document.getElementById('contextCharCount');
   const contextTokenCountEl = document.getElementById('contextTokenCount');
   const sendContextBtn = document.getElementById('sendContextBtn');
+  const ctxHistoryListEl = document.getElementById('ctxHistoryList');
 
   const promptEditorEl = document.getElementById('promptEditor');
   const promptCharCountEl = document.getElementById('promptCharCount');
@@ -19,19 +19,25 @@
   const clearPromptBtn = document.getElementById('clearPromptBtn');
 
   const historyListEl = document.getElementById('historyList');
+  const historyFooterEl = document.getElementById('historyFooter');
   const historySearchEl = document.getElementById('historySearch');
 
-  const templateSelectEl = document.getElementById('templateSelect');
+  const templateBtnEl = document.getElementById('templateBtn');
+  const templateDropdownEl = document.getElementById('templateDropdown');
   const stopSessionBtn = document.getElementById('stopSessionBtn');
   const statusMessageEl = document.getElementById('statusMessage');
   const toastContainerEl = document.getElementById('toastContainer');
+  const addFileBtnEl = document.getElementById('addFileBtn');
+  const attachCopyBtnEl = document.getElementById('attachCopyBtn');
 
   // ─── State ──────────────────────────────────────────
 
   let sessionId = null;
   let activeHistoryId = null;
   let historyData = [];
-  let contextAutoSent = false; // track whether context has been auto-sent this session
+  let ctxHistoryData = [];
+  let activeCtxHistoryId = null;
+  let contextSent = false;
 
   // Disable UI until terminal is connected
   sendContextBtn.disabled = true;
@@ -39,6 +45,7 @@
   clearPromptBtn.disabled = true;
   contextEditorEl.disabled = true;
   promptEditorEl.disabled = true;
+  templateBtnEl.disabled = true;
 
   // ─── Helpers ────────────────────────────────────────
 
@@ -68,69 +75,84 @@
 
   // ─── Templates ──────────────────────────────────────
 
+  let loadedTemplates = {};
+
   fetch('/api/config')
     .then(r => r.json())
     .then(config => {
-      const templates = config && config.templates ? config.templates : {};
-      Object.keys(templates).forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name.charAt(0).toUpperCase() + name.slice(1);
-        templateSelectEl.appendChild(opt);
+      loadedTemplates = (config && config.templates) ? config.templates : {};
+      Object.keys(loadedTemplates).forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'template-item';
+        item.textContent = name.charAt(0).toUpperCase() + name.slice(1);
+        item.addEventListener('click', () => {
+          contextEditorEl.value = loadedTemplates[name] || '';
+          updateContextCounts();
+          templateDropdownEl.classList.add('hidden');
+        });
+        templateDropdownEl.appendChild(item);
       });
     })
     .catch(() => {});
 
-  templateSelectEl.addEventListener('change', () => {
-    const name = templateSelectEl.value;
-    if (!name) return;
-    fetch('/api/config')
-      .then(r => r.json())
-      .then(config => {
-        const text = config && config.templates && config.templates[name];
-        if (text) {
-          contextEditorEl.value = text;
-          renderContextPreview();
-          updateContextCounts();
-        }
-        templateSelectEl.value = '';
-      })
-      .catch(() => {});
+  templateBtnEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    templateDropdownEl.classList.toggle('hidden');
   });
 
-  // ─── Context ────────────────────────────────────────
+  document.addEventListener('click', () => templateDropdownEl.classList.add('hidden'));
 
-  function renderContextPreview() {
-    const md = contextEditorEl.value;
-    if (!md.trim()) {
-      clearChildren(contextPreviewEl);
-      const p = document.createElement('p');
-      p.className = 'preview-empty';
-      p.textContent = 'Start typing to see a live preview...';
-      contextPreviewEl.appendChild(p);
-      return;
-    }
-    try {
-      contextPreviewEl.innerHTML = marked.parse(md);
-    } catch {
-      clearChildren(contextPreviewEl);
-      const p = document.createElement('p');
-      p.style.color = 'var(--danger)';
-      p.textContent = 'Markdown parse error';
-      contextPreviewEl.appendChild(p);
-    }
-  }
+  // ─── Context ────────────────────────────────────────
 
   function updateContextCounts() {
     const n = contextEditorEl.value.length;
     contextCharCountEl.textContent = n.toLocaleString() + ' chars';
     contextTokenCountEl.textContent = '~' + Math.round(n / 4).toLocaleString() + ' tokens';
+    if (sessionId) sendContextBtn.disabled = !contextEditorEl.value.trim();
   }
 
-  contextEditorEl.addEventListener('input', () => {
-    renderContextPreview();
-    updateContextCounts();
-  });
+  contextEditorEl.addEventListener('input', updateContextCounts);
+
+  function renderCtxHistory() {
+    clearChildren(ctxHistoryListEl);
+    if (ctxHistoryData.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding: 24px 12px; text-align: center; color: var(--text-4); font-size: 12px;';
+      empty.textContent = 'No context sent yet';
+      ctxHistoryListEl.appendChild(empty);
+      return;
+    }
+    ctxHistoryData.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'ctx-history-item' + (entry.id === activeCtxHistoryId ? ' active' : '');
+
+      const preview = document.createElement('div');
+      preview.className = 'ctx-history-item-preview';
+      preview.textContent = entry.text;
+
+      const meta = document.createElement('div');
+      meta.className = 'ctx-history-item-meta';
+      const time = document.createElement('span');
+      time.textContent = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const tokens = document.createElement('span');
+      tokens.textContent = '~' + (entry.tokens || Math.round(entry.text.length / 4)) + ' tok';
+      meta.appendChild(time);
+      meta.appendChild(tokens);
+
+      item.appendChild(preview);
+      item.appendChild(meta);
+
+      item.addEventListener('click', () => {
+        activeCtxHistoryId = entry.id;
+        contextEditorEl.value = entry.text;
+        updateContextCounts();
+        renderCtxHistory();
+        showToast('Context loaded into editor', 'info');
+      });
+
+      ctxHistoryListEl.appendChild(item);
+    });
+  }
 
   sendContextBtn.addEventListener('click', async () => {
     if (!sessionId) return;
@@ -146,7 +168,16 @@
         body: JSON.stringify({ text: contextEditorEl.value }),
       });
       if (res.ok) {
+        const data = await res.json();
+        if (data.entry) {
+          ctxHistoryData.unshift(data.entry);
+          activeCtxHistoryId = data.entry.id;
+          renderCtxHistory();
+        }
         setStatus('/ccc sent', 2000);
+        contextSent = true;
+        const hint = document.getElementById('contextHint');
+        if (hint) hint.classList.add('hidden');
       } else {
         showToast('Failed to send context', 'info');
         setStatus('Ready');
@@ -166,6 +197,7 @@
     const n = promptEditorEl.value.length;
     promptCharCountEl.textContent = n.toLocaleString() + ' chars';
     tokenEstimateEl.textContent = '~' + Math.round(n / 4).toLocaleString() + ' tokens';
+    if (sessionId) sendPromptBtn.disabled = !promptEditorEl.value.trim();
   }
 
   promptEditorEl.addEventListener('input', updatePromptCounts);
@@ -176,22 +208,6 @@
     if (!sessionId) return;
 
     sendPromptBtn.disabled = true;
-
-    // On first prompt: auto-send context first if not blank
-    if (!contextAutoSent) {
-      contextAutoSent = true;
-      const ctxText = contextEditorEl.value.trim();
-      if (ctxText) {
-        setStatus('Sending context...');
-        try {
-          await fetch('/api/sessions/' + sessionId + '/context', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: contextEditorEl.value }),
-          });
-        } catch (err) { console.error('Auto-send context failed:', err); }
-      }
-    }
 
     setStatus('Sending prompt...');
     try {
@@ -220,7 +236,7 @@
       showToast('Network error', 'info');
       setStatus('Ready');
     } finally {
-      sendPromptBtn.disabled = false;
+      updatePromptCounts(); // re-evaluates disabled state based on content
     }
   });
 
@@ -238,6 +254,9 @@
     const filtered = filter
       ? historyData.filter(p => p.text.toLowerCase().includes(filter))
       : historyData;
+
+    const total = historyData.length;
+    if (historyFooterEl) historyFooterEl.textContent = total + ' prompt' + (total !== 1 ? 's' : '');
 
     clearChildren(historyListEl);
 
@@ -316,6 +335,216 @@
     });
   });
 
+  // ─── File Modal (upload + browser) ─────────────────
+
+  const fileModal = document.getElementById('file-modal');
+  const fileClose = document.getElementById('file-close');
+  const fileDropzone = document.getElementById('fileDropzone');
+  const filePickerInput = document.getElementById('filePickerInput');
+  const fileUploadResult = document.getElementById('fileUploadResult');
+  const fileUploadPath = document.getElementById('fileUploadPath');
+  const fileUploadCopyBtn = document.getElementById('fileUploadCopyBtn');
+  const fileBrowserToggle = document.getElementById('fileBrowserToggle');
+  const fileBrowserSection = document.getElementById('fileBrowserSection');
+  const fileBrowserPath = document.getElementById('fileBrowserPath');
+  const fileBrowserList = document.getElementById('fileBrowserList');
+  const fileSelectedPath = document.getElementById('fileSelectedPath');
+  const fileCopyBtn = document.getElementById('fileCopyBtn');
+
+  let selectedFilePath = null;
+  let lastUploadedPath = null;
+
+  function closeFileModal() {
+    fileModal.classList.add('hidden');
+    fileUploadResult.classList.add('hidden');
+    fileBrowserSection.classList.add('hidden');
+  }
+  fileClose.addEventListener('click', closeFileModal);
+  fileModal.addEventListener('click', (e) => { if (e.target === fileModal) closeFileModal(); });
+
+  // ── Upload (drag-and-drop + file picker) ──────────
+
+  fileDropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileDropzone.classList.add('dragover');
+  });
+  fileDropzone.addEventListener('dragleave', () => {
+    fileDropzone.classList.remove('dragover');
+  });
+  fileDropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileDropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) uploadFile(file);
+  });
+
+  filePickerInput.addEventListener('change', () => {
+    const file = filePickerInput.files[0];
+    if (file) uploadFile(file);
+    filePickerInput.value = ''; // reset so same file can be picked again
+  });
+
+  async function uploadFile(file) {
+    fileDropzone.classList.add('uploading');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1]; // strip data:...;base64,
+      try {
+        const res = await fetch('/api/files/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: file.name, data: base64 }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          lastUploadedPath = result.path;
+          fileUploadPath.textContent = result.path;
+          fileUploadResult.classList.remove('hidden');
+          // Show the copy button beside the attach button
+          attachCopyBtnEl.classList.remove('hidden');
+          attachCopyBtnEl.dataset.path = result.path;
+          showToast('File saved: ' + result.name, 'success');
+        } else {
+          showToast('Upload failed', 'info');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Upload failed', 'info');
+      } finally {
+        fileDropzone.classList.remove('uploading');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileUploadCopyBtn.addEventListener('click', () => {
+    if (!lastUploadedPath) return;
+    copyPathAndClose(lastUploadedPath);
+  });
+
+  // Attach copy button (beside attach btn in prompt actions) — copies last attached path
+  attachCopyBtnEl.addEventListener('click', () => {
+    if (!lastUploadedPath) return;
+    navigator.clipboard.writeText(lastUploadedPath).then(() => {
+      showToast('Path copied: ' + lastUploadedPath, 'success');
+    }).catch(() => {
+      // Fallback: insert into prompt editor
+      const pos = promptEditorEl.selectionStart;
+      const before = promptEditorEl.value.substring(0, pos);
+      const after = promptEditorEl.value.substring(promptEditorEl.selectionEnd);
+      promptEditorEl.value = before + lastUploadedPath + after;
+      promptEditorEl.selectionStart = promptEditorEl.selectionEnd = pos + lastUploadedPath.length;
+      updatePromptCounts();
+      showToast('Path inserted into prompt', 'info');
+    });
+  });
+
+  // ── Browse project files ──────────────────────────
+
+  fileBrowserToggle.addEventListener('click', () => {
+    const isHidden = fileBrowserSection.classList.contains('hidden');
+    fileBrowserSection.classList.toggle('hidden');
+    if (isHidden) loadDirectory('.');
+  });
+
+  async function loadDirectory(dirPath) {
+    fileBrowserList.textContent = 'Loading...';
+    selectedFilePath = null;
+    fileSelectedPath.textContent = 'Select a file';
+    fileSelectedPath.classList.remove('has-file');
+    fileCopyBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/files?path=' + encodeURIComponent(dirPath));
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+
+      fileBrowserPath.textContent = data.path || '.';
+      fileBrowserList.replaceChildren();
+
+      if (data.path && data.path !== '.') {
+        const back = document.createElement('div');
+        back.className = 'file-browser-item dir';
+        const icon = document.createElement('span');
+        icon.className = 'file-browser-item-icon';
+        icon.textContent = '\u2190';
+        back.appendChild(icon);
+        back.appendChild(document.createTextNode('..'));
+        back.addEventListener('click', () => {
+          const parts = data.path.split('/');
+          parts.pop();
+          loadDirectory(parts.join('/') || '.');
+        });
+        fileBrowserList.appendChild(back);
+      }
+
+      data.items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'file-browser-item ' + item.type;
+
+        const icon = document.createElement('span');
+        icon.className = 'file-browser-item-icon';
+        icon.textContent = item.type === 'dir' ? '\uD83D\uDCC1' : '\uD83D\uDCC4';
+        el.appendChild(icon);
+        el.appendChild(document.createTextNode(item.name));
+
+        if (item.type === 'dir') {
+          el.addEventListener('click', () => loadDirectory(item.path));
+        } else {
+          el.addEventListener('click', () => {
+            fileBrowserList.querySelectorAll('.selected').forEach(s => s.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedFilePath = item.path;
+            fileSelectedPath.textContent = item.path;
+            fileSelectedPath.classList.add('has-file');
+            fileCopyBtn.disabled = false;
+          });
+        }
+
+        fileBrowserList.appendChild(el);
+      });
+
+      if (data.items.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding: 24px; text-align: center; color: var(--text-4); font-size: 12px;';
+        empty.textContent = 'Empty directory';
+        fileBrowserList.appendChild(empty);
+      }
+    } catch (err) {
+      fileBrowserList.textContent = 'Failed to load directory';
+    }
+  }
+
+  fileCopyBtn.addEventListener('click', () => {
+    if (!selectedFilePath) return;
+    copyPathAndClose(selectedFilePath);
+  });
+
+  // ── Shared: copy path to clipboard or insert ──────
+
+  function copyPathAndClose(filePath) {
+    lastUploadedPath = filePath; // track for attach copy button
+    attachCopyBtnEl.classList.remove('hidden');
+    attachCopyBtnEl.dataset.path = filePath;
+    navigator.clipboard.writeText(filePath).then(() => {
+      showToast('Path copied: ' + filePath, 'success');
+    }).catch(() => {
+      // Fallback: insert into prompt editor
+      const pos = promptEditorEl.selectionStart;
+      const before = promptEditorEl.value.substring(0, pos);
+      const after = promptEditorEl.value.substring(promptEditorEl.selectionEnd);
+      promptEditorEl.value = before + filePath + after;
+      promptEditorEl.selectionStart = promptEditorEl.selectionEnd = pos + filePath.length;
+      updatePromptCounts();
+      showToast('Path inserted into prompt', 'info');
+    });
+    closeFileModal();
+  }
+
+  addFileBtnEl.addEventListener('click', () => {
+    fileModal.classList.remove('hidden');
+  });
+
   // ─── Keyboard Shortcuts ─────────────────────────────
 
   document.addEventListener('keydown', (e) => {
@@ -386,20 +615,17 @@
   async function loadSessionData(sid) {
     sessionId = sid;
 
-    // Enable UI now that terminal is connected
-    sendContextBtn.disabled = false;
-    sendPromptBtn.disabled = false;
+    // Enable UI now that terminal is connected (send btns stay disabled until content typed)
     clearPromptBtn.disabled = false;
     contextEditorEl.disabled = false;
     promptEditorEl.disabled = false;
-    templateSelectEl.disabled = false;
+    templateBtnEl.disabled = false;
+    addFileBtnEl.disabled = false;
     stopSessionBtn.disabled = false;
 
-    // Start with clean editors — shared files belong to whoever last sent,
-    // not to this session. Context and prompt editors start blank.
+    // Start with clean editors
     contextEditorEl.value = '';
     promptEditorEl.value = '';
-    renderContextPreview();
     updateContextCounts();
     updatePromptCounts();
 
@@ -408,13 +634,10 @@
       const ctxRes = await fetch('/api/sessions/' + sid + '/context');
       if (ctxRes.ok) {
         const ctxData = await ctxRes.json();
-        if (ctxData.text) {
-          contextEditorEl.value = ctxData.text;
-        }
+        if (ctxData.text) contextEditorEl.value = ctxData.text;
       }
     } catch (err) { console.error('Failed to load context:', err); }
 
-    // If still blank, pre-fill with the default template
     if (!contextEditorEl.value.trim()) {
       try {
         const cfgRes = await fetch('/api/config');
@@ -425,8 +648,25 @@
         }
       } catch (err) { /* non-critical */ }
     }
-    renderContextPreview();
     updateContextCounts();
+
+    // Load context history
+    try {
+      const chRes = await fetch('/api/sessions/' + sid + '/context/history');
+      if (chRes.ok) {
+        ctxHistoryData = await chRes.json();
+        ctxHistoryData.reverse();
+        if (ctxHistoryData.length > 0) activeCtxHistoryId = ctxHistoryData[0].id;
+      }
+    } catch (err) { /* non-critical */ }
+    renderCtxHistory();
+
+    // If context was already sent in a previous visit, hide the hint
+    if (ctxHistoryData.length > 0) {
+      contextSent = true;
+      const hint = document.getElementById('contextHint');
+      if (hint) hint.classList.add('hidden');
+    }
 
     // Load prompt history (per-session)
     try {
@@ -435,8 +675,6 @@
         historyData = await res.json();
         historyData.reverse();
         renderHistory();
-        // If history exists, context was already sent in a previous interaction
-        if (historyData.length > 0) contextAutoSent = true;
       }
     } catch (err) { console.error('Failed to load history:', err); }
   }
@@ -446,12 +684,14 @@
   window.addEventListener('wingman-session-ended', () => {
     const overlay = document.getElementById('session-ended-overlay');
     if (overlay) overlay.classList.remove('hidden');
+    setTimeout(() => window.close(), 1000);
     sendContextBtn.disabled = true;
     sendPromptBtn.disabled = true;
     clearPromptBtn.disabled = true;
     contextEditorEl.disabled = true;
     promptEditorEl.disabled = true;
-    templateSelectEl.disabled = true;
+    templateBtnEl.disabled = true;
+    addFileBtnEl.disabled = true;
     stopSessionBtn.disabled = true;
   });
 
