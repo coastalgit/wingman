@@ -33,6 +33,18 @@
       "text": "Whhat is docs/promptfiles/bin.jpg a pic of?",
       "timestamp": "2026-03-07T02:22:12.414Z",
       "tokens": 11
+    },
+    {
+      "id": "1773101210432",
+      "text": "Whihc is the biggestr breed",
+      "timestamp": "2026-03-10T00:06:50.432Z",
+      "tokens": 7
+    },
+    {
+      "id": "1773101273267",
+      "text": "Whihc is the biggestr breed",
+      "timestamp": "2026-03-10T00:07:53.267Z",
+      "tokens": 7
     }
   ],
   "contextHistory": [
@@ -65,9 +77,15 @@
       "text": "This is about dogs",
       "timestamp": "2026-03-07T02:28:34.821Z",
       "tokens": 5
+    },
+    {
+      "id": "1773101254141",
+      "text": "This is about dogs and cats",
+      "timestamp": "2026-03-10T00:07:34.141Z",
+      "tokens": 7
     }
   ],
-  "contextText": "This is about dogs",
+  "contextText": "This is about dogs and cats",
   "flags": {
     "yolo": false
   }
