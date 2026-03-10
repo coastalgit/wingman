@@ -661,12 +661,8 @@
     } catch (err) { /* non-critical */ }
     renderCtxHistory();
 
-    // If context was already sent in a previous visit, hide the hint
-    if (ctxHistoryData.length > 0) {
-      contextSent = true;
-      const hint = document.getElementById('contextHint');
-      if (hint) hint.classList.add('hidden');
-    }
+    // Hint stays visible until context is sent in THIS browser visit
+    // (contextSent starts false; set true only by sendContext handler)
 
     // Load prompt history (per-session)
     try {
@@ -702,7 +698,7 @@
     .then(data => {
       if (!data.version) return;
       const parts = data.version.split('.');
-      const label = 'Wingman v' + parts[0] + '.' + parts[1];
+      const label = 'Wingman v' + parts[0] + '.' + parts[1] + (data.build ? ' build ' + data.build : '');
       const el = document.getElementById('statusProject');
       if (el) el.textContent = label;
     })

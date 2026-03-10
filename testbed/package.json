@@ -1,16 +1,19 @@
 {
   "name": "wingman",
   "version": "2.0.0",
-  "build": 17,
-  "description": "Browser terminal for Claude Code sessions",
+  "build": 20,
+  "description": "Browser-based mission control for Claude Code sessions",
+  "keywords": ["claude", "claude-code", "terminal", "prompt", "ai", "anthropic"],
   "main": "server.js",
   "bin": {
     "wingman": "./bin/wingman.js"
   },
   "files": [
     "bin/",
-    "lib/",
-    "public/",
+    "lib/*.js",
+    "public/*.html",
+    "public/*.css",
+    "public/*.js",
     "server.js"
   ],
   "engines": {
