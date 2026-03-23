@@ -2,7 +2,7 @@
 
 A browser-based mission control for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions. Launch, manage, and interact with multiple Claude Code instances from a single dashboard.
 
-> **Origin:** Wingman started as a Flutter Windows desktop app during the April 2025 Aspire Hackathon. It was rewritten as a Node.js web application to be cross-platform and easier to distribute.
+> **Origin:** Wingman started as a Flutter Windows desktop app built at a corporate hackathon. It was rewritten as a Node.js web application to be cross-platform and easier to distribute.
 
 ## Quick Start
 
