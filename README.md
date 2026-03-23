@@ -24,7 +24,6 @@ This opens **Mission Control** in your browser. From there you can launch Claude
 - **Chrome Mode** — `--chrome` flag with blue indicator
 - **File References** — Drag-and-drop files or browse project to get copyable paths
 - **Settings** — Configure default file directory for uploads
-- **Manual Mode** — `npx wingman --manual` for file-based prompt staging without PTY
 
 ## Requirements
 
@@ -47,8 +46,7 @@ wingman/
 │   └── wingman.js             # CLI entry point (`npx wingman`)
 ├── lib/
 │   ├── session-manager.js     # Session lifecycle (spawn, stop, reconnect)
-│   ├── process-lock.js        # PID lock — prevents duplicate instances
-│   └── manual-mode.js         # File-based mode (no PTY)
+│   └── process-lock.js        # PID lock — prevents duplicate instances
 ├── public/
 │   ├── mission-control.html   # Mission Control dashboard page
 │   ├── mission-control.js     # MC client logic
@@ -89,7 +87,6 @@ Wingman sets up two Claude Code slash commands in `.claude/commands/`:
 ```
 npx wingman                  # Start normally (auto-assigns port)
 npx wingman --port 3000      # Use a specific port
-npx wingman --manual         # Manual mode (no PTY, file-based only)
 ```
 
 ## Installation
