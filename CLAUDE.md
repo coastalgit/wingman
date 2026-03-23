@@ -2,91 +2,74 @@
 
 ## Overview
 
-Wingman is a Flutter Windows desktop application built during the April 2025 Aspire Hackathon. It serves as a prompt and context manager for AI-assisted coding tools (Claude Code CLI, Cursor IDE, Aider). The core workflow is: write/edit prompts and context in the Wingman GUI, which saves them as markdown files to disk, then use short shell aliases (e.g. `ccc`, `ccp`) in the terminal to pipe those files into the AI tool.
+Wingman is a Node.js web application that serves as mission control for Claude Code sessions. It spawns Claude Code processes via node-pty, streams terminal I/O to the browser over WebSocket, and provides a dashboard for managing multiple sessions with prompt/context tooling.
 
 ## Architecture
 
-- **Framework**: Flutter 3.5.3, Windows desktop target
-- **State Management**: Riverpod (StateProvider, FutureProvider, Family modifiers)
-- **Persistence**: File-based JSON + markdown (no database)
-- **Navigation**: Custom enum-based routing (`AppScreen` enum via provider)
-- **UI**: Material Design 3, dark theme, tabbed interface
+- **Server**: Node.js 18+, Express 4, WebSocket (ws)
+- **Terminal**: node-pty (ConPTY on Windows) → xterm.js in browser
+- **Persistence**: File-based JSON (session data, config, prompt/context markdown)
+- **Transport**: WebSocket for terminal I/O and control messages
+- **UI**: Vanilla HTML/CSS/JS (no framework)
 
 ## Project Structure
 
 ```
-lib/
-├── main.dart                    # Entry point, screen routing
-├── providers/app-providers.dart # All Riverpod providers
-├── models/
-│   ├── config_model.dart        # WingmanConfig, DevelopmentEnvironment enum
-│   ├── chat-model.dart          # Chat session model
-│   ├── prompt_model.dart        # Prompt model with history persistence
-│   └── context-model.dart       # Context template system
-├── screens/
-│   ├── project-setup.dart       # Project directory selection
-│   ├── environment-config-screen.dart  # AI tool selection
-│   ├── new-chat-screen.dart     # Chat creation/history
-│   ├── main-interface.dart      # Tabbed main UI
-│   └── tabs/
-│       ├── context-tab.dart     # Context editor with markdown preview
-│       └── prompts-tab.dart     # Prompt editor with history & speech
-├── services/
-│   ├── file-service.dart        # File I/O
-│   └── speech-service.dart      # Speech-to-text
-├── widgets/
-│   ├── common_widgets.dart      # Reusable components
-│   ├── claude_code_assistant.dart  # Claude Code setup dialog
-│   └── utils.dart               # Widget utilities
-└── utils/
-    ├── constants.dart           # App-wide constants & styling
-    └── utils.dart               # Helpers (WSL path conversion etc.)
+wingman/
+├── server.js                  # Express + WebSocket server (main entry)
+├── bin/
+│   └── wingman.js             # CLI entry point (`npx wingman`)
+├── lib/
+│   ├── session-manager.js     # Session lifecycle (spawn, stop, reconnect)
+│   ├── process-lock.js        # PID lock — prevents duplicate instances
+│   └── manual-mode.js         # File-based mode (no PTY)
+├── public/
+│   ├── mission-control.html   # Mission Control dashboard page
+│   ├── mission-control.js     # MC client logic
+│   ├── mission-control.css    # MC styling
+│   ├── session.html           # Session page (terminal + UI)
+│   ├── session-ui.js          # Session client logic
+│   ├── session.css            # Session styling
+│   ├── terminal.js            # xterm.js terminal wrapper
+│   └── styles.css             # Global shared styles
+├── package.json               # npm package definition
+├── CLAUDE.md                  # This file — project instructions for Claude Code
+└── README.md                  # User-facing documentation
 ```
 
-## Application Flow
+## Runtime Files (per project, created at runtime)
 
 ```
-ProjectSetupScreen → EnvironmentConfigScreen → NewChatScreen → MainInterfaceScreen
-                                                                 ├── Context Tab
-                                                                 └── Prompts Tab (per environment)
+.ai/wingman/
+├── wingman.json              # Config (templates, settings)
+├── wingman.pid               # Process lock file
+├── cprompt.md                # Active prompt
+├── ccontext.md               # Active context
+└── sessions/
+    └── <session-id>.json     # Per-session data (history, flags)
 ```
 
-## File System Layout (per project)
+## Slash Commands (installed into user's project)
 
-When configured, Wingman creates:
-```
-project-root/
-├── wingman/
-│   ├── wingcfg.json       # Project config
-│   ├── chats.json         # Chat sessions
-│   ├── history/           # Prompt history (JSON per prompt)
-│   └── templates/         # Future template support
-└── docs/
-    ├── cc_context.md      # Claude Code context
-    ├── cc_prompt.md       # Claude Code active prompt
-    ├── cr_context.md      # Cursor context
-    └── cr_prompt.md       # Cursor active prompt
-```
+Wingman sets up two Claude Code slash commands in `.claude/commands/`:
 
-## Key Environment Aliases
+- `/ccp` — Reads the current prompt from `cprompt.md`
+- `/ccc` — Reads the current context from `ccontext.md`
 
-- **Claude Code**: `ccc` = read context, `ccp` = read prompt
-- **Cursor**: `crc` = read context, `crp` = read prompt
+## Key Dependencies
 
-## Dependencies
-
-Core: `flutter_riverpod`, `flutter_markdown`, `file_picker`, `path_provider`, `speech_to_text`, `shared_preferences`, `intl`
+- `express` — HTTP server
+- `node-pty` — Pseudo-terminal for spawning Claude Code
+- `ws` — WebSocket server
+- `open` — Auto-open browser on start
 
 ## Development Notes
 
-- App was originally scaffolded with Claude assistance during the hackathon
-- Speech-to-text uses Windows native speech recognition
-- WSL path conversion is handled in utils for Claude Code CLI (which runs in WSL)
-- Prompt IDs use millisecond-precision timestamps (`yyyyMMdd_HHmmss_SSS`)
-
-## Future Direction
-
-The app's core value (prompt/context management for Claude Code) may be better served by Claude Code's own extensibility mechanisms (plugins, MCP servers, slash commands) which have matured since the hackathon. Consider migrating functionality into those formats.
+- Entry point is `bin/wingman.js` (CLI) → `server.js` (Express app)
+- Session IDs are UUIDs; session state is persisted to `.ai/wingman/sessions/`
+- Process lock (`wingman.pid`) prevents duplicate server instances
+- Manual mode (`--manual`) skips PTY entirely — file-based prompt staging only
+- Git for Windows bash is required on Windows (used to spawn `claude`)
 
 ## /checkpoint
 

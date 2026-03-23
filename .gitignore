@@ -8,12 +8,6 @@ node_modules/
 .idea/
 *.iml
 
-# Flutter / Dart (legacy — project is now Node.js)
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-build/
-
 # Runtime artifacts
 .ai/
 
@@ -22,3 +16,11 @@ testbed/node_modules/
 
 # Temp
 temp/
+
+# Claude Code internal (session memory, local settings — not for public repo)
+.claude/seshmem/
+.claude/settings.local.json
+.claude/worktrees/
+
+# Internal dev planning docs
+.planning/
