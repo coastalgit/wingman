@@ -8,6 +8,10 @@ node_modules/
 .idea/
 *.iml
 
+# Build artifacts
+.dart_tool/
+build/
+
 # Runtime artifacts
 .ai/
 
