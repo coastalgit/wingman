@@ -7,8 +7,12 @@ A browser-based mission control for [Claude Code](https://docs.anthropic.com/en/
 ## Quick Start
 
 ```bash
+# Install globally from GitHub
+npm install -g git+https://github.com/coastalgit/wingman.git
+
+# Then from any project directory:
 cd your-project
-npx wingman
+wingman
 ```
 
 This opens **Mission Control** in your browser. From there you can launch Claude Code sessions, each in its own browser tab with a full terminal.
@@ -85,8 +89,8 @@ Wingman sets up two Claude Code slash commands in `.claude/commands/`:
 ## CLI Options
 
 ```
-npx wingman                  # Start normally (auto-assigns port)
-npx wingman --port 3000      # Use a specific port
+wingman                      # Start normally (auto-assigns port)
+wingman --port 3000          # Use a specific port
 ```
 
 ## Installation
