@@ -185,21 +185,8 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
       sessionManager.addToHistory(req.params.id, echo);
     }
 
-    // If Claude is idle (at input prompt), send /ccp immediately.
-    // If busy, queue it — the idle detector will fire /ccp when Claude is ready.
-    if (session.claudeIdle) {
-      session.ptyProcess.write('\x15/ccp\r');
-    } else {
-      session.pendingCcp = true;
-      // Notify terminal clients that prompt is queued
-      const queueMsg = '\r\n\x1b[38;5;208m[Prompt queued — will send when Claude is ready]\x1b[0m\r\n';
-      wss.clients.forEach((client) => {
-        if (client.readyState === 1 && client.sessionId === req.params.id) {
-          client.send(JSON.stringify({ type: 'output', data: queueMsg }));
-        }
-      });
-      sessionManager.addToHistory(req.params.id, queueMsg);
-    }
+    // Always use /ccp for reliable file-based delivery (handles any prompt size)
+    session.ptyProcess.write('\x15/ccp\r');
   }
 
   res.json({ status: 'sent', entry });
@@ -479,11 +466,6 @@ function spawnAndWirePty(sessionId) {
   session.primaryWs = null; // reset primary on new PTY
   sessionManager.updateSessionsFile();
 
-  // Track whether Claude is at its input prompt (idle) or busy
-  session.claudeIdle = false;
-  session.pendingCcp = false;
-  let idleTimer = null;
-
   // Buffer PTY output into history and broadcast to all connected terminal clients
   ptyProcess.onData((data) => {
     sessionManager.addToHistory(sessionId, data);
@@ -492,20 +474,6 @@ function spawnAndWirePty(sessionId) {
         client.send(JSON.stringify({ type: 'output', data }));
       }
     });
-
-    // Detect Claude's input prompt — when output settles and ends with a prompt-like marker.
-    // Claude shows '>' or a colored prompt when ready for input. We use a debounce:
-    // if no new output for 500ms, assume Claude is idle.
-    session.claudeIdle = false;
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-      session.claudeIdle = true;
-      // If a /ccp was queued while Claude was busy, fire it now
-      if (session.pendingCcp && session.ptyProcess) {
-        session.pendingCcp = false;
-        session.ptyProcess.write('\x15/ccp\r');
-      }
-    }, 500);
   });
 
   // PTY exited naturally (e.g. user typed 'exit') — detach but keep session reconnectable
