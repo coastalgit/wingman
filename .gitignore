@@ -3,6 +3,7 @@ node_modules/
 
 # OS / Editor
 .DS_Store
+Thumbs.db
 *.log
 .vscode/
 .idea/
@@ -13,20 +14,34 @@ node_modules/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
+.metadata
 
 # Runtime artifacts
 .ai/
 
-# Testbed (throwaway UAT copy)
+# Testbed runtime artifacts
+testbed/.ai/
 testbed/node_modules/
+testbed/playwright-report/
+testbed/playwright-results.xml
+testbed/test-results/
+testbed/docs/promptfiles/
 
 # Temp
 temp/
 
-# Claude Code internal (session memory, local settings — not for public repo)
+# Claude Code internal
 .claude/seshmem/
 .claude/settings.local.json
 .claude/worktrees/
 
+# Secrets
+.env
+.env.*
+
 # Internal dev planning docs
 .planning/
+
+# Test artifacts
+playwright-report/
+test-results/
