@@ -167,25 +167,6 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
   sessionManager.appendPromptHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    const suppressEcho = !!(req.body && req.body.suppressEcho);
-
-    // Echo the prompt into the terminal (unless suppressed)
-    if (!suppressEcho && text) {
-      const maxPreview = 2000;
-      const preview = text.length > maxPreview ? text.substring(0, maxPreview) + '\n... [truncated]' : text;
-      const echoLines = preview.split('\n').map(l => '  ' + l).join('\r\n');
-      const echo = '\r\n\x1b[38;5;245m\x1b[3m── prompt sent ──────────────────────────\x1b[0m\r\n'
-                 + '\x1b[38;5;245m' + echoLines + '\x1b[0m\r\n'
-                 + '\x1b[38;5;245m\x1b[3m─────────────────────────────────────────\x1b[0m\r\n';
-      wss.clients.forEach((client) => {
-        if (client.readyState === 1 && client.sessionId === req.params.id) {
-          client.send(JSON.stringify({ type: 'output', data: echo }));
-        }
-      });
-      sessionManager.addToHistory(req.params.id, echo);
-    }
-
-    // Always use /ccp for reliable file-based delivery (handles any prompt size)
     session.ptyProcess.write('\x15/ccp\r');
   }
 
