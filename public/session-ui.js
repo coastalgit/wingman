@@ -209,12 +209,15 @@
 
     sendPromptBtn.disabled = true;
 
+    const suppressEchoEl = document.getElementById('suppressEcho');
+    const suppressEcho = suppressEchoEl ? suppressEchoEl.checked : false;
+
     setStatus('Sending prompt...');
     try {
       const res = await fetch('/api/sessions/' + sessionId + '/prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, suppressEcho }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -698,9 +701,20 @@
     .then(data => {
       if (!data.version) return;
       const parts = data.version.split('.');
-      const label = 'Wingman v' + parts[0] + '.' + parts[1] + (data.build ? ' build ' + data.build : '');
+      const label = 'Wingman v' + parts[0] + '.' + parts[1] + ' build ' + (data.build || 0);
       const el = document.getElementById('statusProject');
       if (el) el.textContent = label;
+    })
+    .catch(() => {});
+
+  // ─── Project Name (centered in footer) ──────────────
+
+  fetch('/api/project-info')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.name) return;
+      const el = document.getElementById('statusProjectName');
+      if (el) el.textContent = data.name;
     })
     .catch(() => {});
 

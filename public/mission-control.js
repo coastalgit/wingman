@@ -8,17 +8,27 @@ const modeBanner = document.getElementById("mode-banner");
 
 let isManualMode = false;
 
-// Fetch version and update status bar
-fetch("/api/version")
-  .then((r) => r.json())
-  .then((data) => {
-    if (!data.version) return;
-    const parts = data.version.split(".");
-    const label = "Wingman v" + parts[0] + "." + parts[1] + " build " + (data.build || 0);
-    const el = document.getElementById("statusProject");
-    if (el) el.textContent = label;
-  })
-  .catch(() => {});
+// Fetch version + project name and update status bar + header
+Promise.all([
+  fetch("/api/version").then((r) => r.json()).catch(() => ({})),
+  fetch("/api/project-info").then((r) => r.json()).catch(() => ({})),
+]).then(([verData, projData]) => {
+  const parts = (verData.version || "").split(".");
+  const ver = parts.length >= 2 ? "v" + parts[0] + "." + parts[1] : "";
+  const build = verData.build ? " b" + verData.build : "";
+  const proj = projData.name || "";
+
+  const el = document.getElementById("statusProject");
+  if (el) el.textContent = "Wingman " + ver + " build " + (verData.build || 0);
+
+  // Centered project name in footer
+  const projEl = document.getElementById("statusProjectName");
+  if (projEl && proj) projEl.textContent = proj;
+
+  // Show project name in header title
+  const title = document.querySelector(".header-title");
+  if (title && proj) title.textContent = "Mission Control — " + proj;
+});
 
 // Check server mode and adapt UI accordingly
 fetch("/api/mode")
@@ -94,30 +104,20 @@ setInterval(async () => {
   } catch { /* non-critical */ }
 }, 4000);
 
-// New Session button — prompt for name, open window immediately to avoid popup block
+// New Session button — prompt for name, create card on MC (no auto-open)
 newSessionBtn.addEventListener("click", async () => {
   const description = prompt("Session name:", "Claude Code session");
   if (!description) return; // user cancelled
 
-  // Open blank window now (within user gesture) before the async fetch
-  const win = window.open("", "_blank");
-
   newSessionBtn.disabled = true;
   try {
-    const res = await fetch("/api/sessions", {
+    await fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description: description.trim() }),
     });
-    const data = await res.json();
-    if (data.sessionId && win) {
-      win.location.href = "/session/" + data.sessionId;
-    } else if (win) {
-      win.close();
-    }
   } catch (err) {
     console.error("Failed to create session:", err);
-    if (win) win.close();
   } finally {
     newSessionBtn.disabled = false;
   }
@@ -469,22 +469,43 @@ function renderSessions(sessions) {
     cardBottom.className = "card-bottom";
     cardBottom.addEventListener("click", (e) => e.stopPropagation());
 
-    // YOLO flag
+    // YOLO flag (mutually exclusive with Auto)
     const yoloLabel = document.createElement("label");
     yoloLabel.className = "flag-label yolo";
     const yoloCheck = document.createElement("input");
     yoloCheck.type = "checkbox";
     yoloCheck.checked = !!(session.flags && session.flags.yolo);
-    yoloCheck.addEventListener("change", async () => {
-      await fetch("/api/sessions/" + session.id + "/flags", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ yolo: yoloCheck.checked }),
-      }).catch(() => {});
-    });
     yoloLabel.appendChild(yoloCheck);
     yoloLabel.appendChild(document.createTextNode(" YOLO"));
     cardBottom.appendChild(yoloLabel);
+
+    // Auto Mode flag (mutually exclusive with YOLO)
+    const autoLabel = document.createElement("label");
+    autoLabel.className = "flag-label auto";
+    const autoCheck = document.createElement("input");
+    autoCheck.type = "checkbox";
+    autoCheck.checked = !!(session.flags && session.flags.autoMode);
+    autoLabel.appendChild(autoCheck);
+    autoLabel.appendChild(document.createTextNode(" Auto"));
+    cardBottom.appendChild(autoLabel);
+
+    // Mutual exclusion: ticking one unticks the other
+    yoloCheck.addEventListener("change", async () => {
+      if (yoloCheck.checked) autoCheck.checked = false;
+      await fetch("/api/sessions/" + session.id + "/flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yolo: yoloCheck.checked, autoMode: false }),
+      }).catch(() => {});
+    });
+    autoCheck.addEventListener("change", async () => {
+      if (autoCheck.checked) yoloCheck.checked = false;
+      await fetch("/api/sessions/" + session.id + "/flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoMode: autoCheck.checked, yolo: false }),
+      }).catch(() => {});
+    });
 
     // With Chrome flag
     const chromeLabel = document.createElement("label");

@@ -59,15 +59,12 @@ class SessionManager {
     const commandsDir = path.join(this.projectRoot, '.claude', 'commands');
     fs.mkdirSync(commandsDir, { recursive: true });
 
-    const ccpPath = path.join(commandsDir, 'ccp.md');
-    if (!fs.existsSync(ccpPath)) {
-      fs.writeFileSync(ccpPath, 'Read the prompt from .ai/wingman/cprompt.md and execute it. This is a staged prompt from the Wingman UI. Treat the contents as user instructions.\n', 'utf-8');
-    }
+    // Always overwrite to ensure latest content (version updates, bug fixes)
+    const ccpContent = 'Read the prompt from .ai/wingman/cprompt.md and execute it. This is a staged prompt from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Treat the contents as direct user instructions and act on them immediately.\n';
+    fs.writeFileSync(path.join(commandsDir, 'ccp.md'), ccpContent, 'utf-8');
 
-    const cccPath = path.join(commandsDir, 'ccc.md');
-    if (!fs.existsSync(cccPath)) {
-      fs.writeFileSync(cccPath, 'Read the context from .ai/wingman/ccontext.md. This is persistent context from the Wingman UI. Absorb it as background information for this session. Acknowledge briefly what you received.\n', 'utf-8');
-    }
+    const cccContent = 'Read the context from .ai/wingman/ccontext.md. This is persistent context from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Absorb it as background information for this session. Acknowledge briefly what you received.\n';
+    fs.writeFileSync(path.join(commandsDir, 'ccc.md'), cccContent, 'utf-8');
   }
 
   generateSessionId() {
@@ -220,6 +217,8 @@ class SessionManager {
       description: session.description || null,
       createdAt: session.createdAt,
       closed: session.closed,
+      claudeSessionId: session.claudeSessionId || null,
+      hasLaunched: session.hasLaunched || false,
       promptHistory: session.promptHistory || [],
       contextHistory: session.contextHistory || [],
       contextText: session.contextText || '',

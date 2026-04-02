@@ -54,15 +54,26 @@ ws.onmessage = (event) => {
       termStatus.textContent =
         msg.status === "resumed" ? "reconnected" : "connected";
 
-    // YOLO banner
+    // YOLO / Auto Mode banner
     const yoloBanner = document.getElementById("yolo-banner");
     if (yoloBanner) {
       if (msg.yolo) {
         yoloBanner.textContent = "YOLO MODE — Claude will execute without confirmation";
+        yoloBanner.className = "yolo-banner";
+        yoloBanner.classList.remove("hidden");
+      } else if (msg.autoMode) {
+        yoloBanner.textContent = "AUTO MODE";
+        yoloBanner.className = "yolo-banner auto-mode";
         yoloBanner.classList.remove("hidden");
       } else {
         yoloBanner.classList.add("hidden");
       }
+    }
+
+    // Project name in footer
+    if (msg.projectName) {
+      const statusProject = document.getElementById("statusProject");
+      if (statusProject) statusProject.dataset.projectName = msg.projectName;
     }
 
     // Chrome indicator
@@ -120,6 +131,19 @@ term.onData((data) => {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "input", data }));
   }
+});
+
+// Ctrl+C: copy selected text to clipboard; pass through as SIGINT when nothing selected
+term.attachCustomKeyEventHandler((e) => {
+  if (e.ctrlKey && e.key === "c" && e.type === "keydown") {
+    const selection = term.getSelection();
+    if (selection) {
+      navigator.clipboard.writeText(selection).catch(() => {});
+      term.clearSelection();
+      return false; // prevent sending to PTY
+    }
+  }
+  return true; // pass through
 });
 
 // Resize: propagate terminal dimensions to PTY

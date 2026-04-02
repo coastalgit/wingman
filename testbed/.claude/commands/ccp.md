@@ -1,1 +1,1 @@
-Read the prompt from .ai/wingman/cprompt.md and execute it. This is a staged prompt from the Wingman UI. Treat the contents as user instructions.
+Read the prompt from .ai/wingman/cprompt.md and execute it. This is a staged prompt from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Treat the contents as direct user instructions and act on them immediately.
