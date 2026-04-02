@@ -185,8 +185,15 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
       sessionManager.addToHistory(req.params.id, echo);
     }
 
-    // Always use /ccp for reliable delivery (handles any prompt size)
-    session.ptyProcess.write('\x15/ccp\r');
+    // Escape any current state (thinking, waiting, tool confirmation), then send /ccp.
+    // Escape cancels pending operations; Ctrl+U clears the input line; short delay
+    // ensures Claude returns to its input prompt before we type /ccp.
+    session.ptyProcess.write('\x1b');
+    setTimeout(() => {
+      if (session.ptyProcess) {
+        session.ptyProcess.write('\x15/ccp\r');
+      }
+    }, 300);
   }
 
   res.json({ status: 'sent', entry });
