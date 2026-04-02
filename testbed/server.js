@@ -15,7 +15,14 @@ const { WebSocketServer } = require('ws');
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
-const pty = require('node-pty');
+let pty;
+try {
+  pty = require('node-pty');
+} catch {
+  console.error('node-pty is not installed. Run: npm install node-pty');
+  console.error('(Requires C++ build tools on Windows — see README.)');
+  process.exit(1);
+}
 const SessionManager = require('./lib/session-manager.js');
 const { acquireLock, releaseLock } = require('./lib/process-lock.js');
 const { initManualMode } = require('./lib/manual-mode.js');
