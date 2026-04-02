@@ -741,11 +741,33 @@
   .history-item-meta {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     font-size: 10px;
     color: var(--info);
     opacity: 0.75;
     font-family: var(--font-mono);
+  }
+
+  .history-delete-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-4);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 3px;
+    line-height: 0;
+    transition: color 0.12s, background 0.12s;
+    flex-shrink: 0;
+  }
+
+  .history-item:hover .history-delete-btn {
+    display: flex;
+  }
+
+  .history-delete-btn:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.12);
   }
 
   .history-footer {

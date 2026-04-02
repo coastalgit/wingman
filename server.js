@@ -217,6 +217,15 @@ app.get('/api/sessions/:id/history', (req, res) => {
   res.json(sessionManager.loadPromptHistory(req.params.id));
 });
 
+// REST API: Delete a prompt history entry
+app.delete('/api/sessions/:id/history/:entryId', (req, res) => {
+  const session = sessionManager.getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const removed = sessionManager.removePromptHistory(req.params.id, req.params.entryId);
+  if (!removed) return res.status(404).json({ error: 'Entry not found' });
+  res.json({ status: 'deleted' });
+});
+
 // REST API: Update session flags (yolo, withChrome, etc.)
 app.patch('/api/sessions/:id/flags', (req, res) => {
   const session = sessionManager.getSession(req.params.id);

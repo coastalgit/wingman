@@ -281,6 +281,39 @@
 
       const meta = document.createElement('div');
       meta.className = 'history-item-meta';
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'history-delete-btn';
+      deleteBtn.title = 'Delete prompt';
+      const delSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      delSvg.setAttribute('width', '12');
+      delSvg.setAttribute('height', '12');
+      delSvg.setAttribute('viewBox', '0 0 24 24');
+      delSvg.setAttribute('fill', 'none');
+      delSvg.setAttribute('stroke', 'currentColor');
+      delSvg.setAttribute('stroke-width', '2.5');
+      delSvg.setAttribute('stroke-linecap', 'round');
+      delSvg.setAttribute('stroke-linejoin', 'round');
+      const p1 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      p1.setAttribute('points', '3 6 5 6 21 6');
+      const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p2.setAttribute('d', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2');
+      delSvg.appendChild(p1);
+      delSvg.appendChild(p2);
+      deleteBtn.appendChild(delSvg);
+      deleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try {
+          const res = await fetch('/api/sessions/' + sessionId + '/history/' + prompt.id, { method: 'DELETE' });
+          if (res.ok) {
+            historyData = historyData.filter(p => p.id !== prompt.id);
+            if (activeHistoryId === prompt.id) activeHistoryId = null;
+            renderHistory(historySearchEl.value);
+          }
+        } catch (err) { console.error(err); }
+      });
+      meta.appendChild(deleteBtn);
+
       const time = document.createElement('span');
       time.textContent = new Date(prompt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const tokens = document.createElement('span');

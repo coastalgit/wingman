@@ -257,6 +257,16 @@ class SessionManager {
     return (session && session.contextHistory) || [];
   }
 
+  removePromptHistory(sessionId, entryId) {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.promptHistory) return false;
+    const idx = session.promptHistory.findIndex(e => e.id === entryId);
+    if (idx === -1) return false;
+    session.promptHistory.splice(idx, 1);
+    this.saveSessionFile(sessionId);
+    return true;
+  }
+
   // Load all session files from disk on startup
   loadSessionsFromDisk() {
     if (!fs.existsSync(this.sessionsDir)) return;
