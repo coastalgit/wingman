@@ -1,6 +1,6 @@
 {
   "name": "wingman",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "build": 1,
   "description": "Browser-based mission control for Claude Code sessions",
   "keywords": ["claude", "claude-code", "terminal", "prompt", "ai", "anthropic"],
