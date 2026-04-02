@@ -14,6 +14,7 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const http = require('http');
 const path = require('path');
+const crypto = require('crypto');
 const pty = require('node-pty');
 const SessionManager = require('./lib/session-manager.js');
 const { acquireLock, releaseLock } = require('./lib/process-lock.js');
@@ -85,6 +86,11 @@ app.get('/api/version', (req, res) => {
   res.json({ version: pkg.version, build: pkg.build || 0 });
 });
 
+// REST API: Project info (basename of cwd)
+app.get('/api/project-info', (req, res) => {
+  res.json({ name: path.basename(process.cwd()) });
+});
+
 // REST API: List all sessions with status
 app.get('/api/sessions', (req, res) => {
   res.json(sessionManager.getAllSessionsWithStatus());
@@ -137,7 +143,7 @@ app.get('/api/sessions/:id/prompt', (req, res) => {
   res.json({ text: sessionManager.loadPrompt() });
 });
 
-// REST API: Send prompt — save to shared file, append to session history, inject /ccp into PTY
+// REST API: Send prompt — write directly to Claude's stdin (no /ccp slash command)
 app.post('/api/sessions/:id/prompt', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -154,9 +160,14 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
   sessionManager.appendPromptHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    // Send /ccp slash command to read the prompt file we just saved.
-    // Ctrl+U clears any pending input first.
-    session.ptyProcess.write('\x15/ccp\r');
+    const suppressEcho = !!(req.body && req.body.suppressEcho);
+    if (suppressEcho) {
+      // Silent mode: use /ccp slash command (file-based, no echo in terminal)
+      session.ptyProcess.write('\x15/ccp\r');
+    } else {
+      // Default: write prompt directly to Claude's stdin — visible in terminal, no "loading skill"
+      session.ptyProcess.write('\x15' + text + '\r');
+    }
   }
 
   res.json({ status: 'sent', entry });
@@ -243,7 +254,8 @@ function parseClaudeFlags(helpText) {
     '--replay-user-messages', '--file', '--fallback-model', '--no-session-persistence',
     '--session-id', '--from-pr', '--strict-mcp-config', '--tmux',
     '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions',
-    '--chrome', '--no-chrome',
+    '--chrome', '--no-chrome', '--enable-auto-mode',
+    '--resume', '--continue', '--fork-session', '--name',
   ]);
 
   for (const line of lines) {
@@ -375,10 +387,20 @@ function broadcastSessionUpdate() {
 
 // Spawn a PTY and wire up onData/onExit for a session that already exists in SessionManager.
 // Used both for new sessions (POST /api/sessions) and reconnecting to reconnectable sessions.
-function buildClaudeCommand(session) {
+function buildClaudeCommand(session, isResume) {
   const parts = ['claude'];
+
+  // Resume with Claude's own session ID if available
+  if (isResume && session.claudeSessionId) {
+    parts.push('--resume', session.claudeSessionId);
+  } else if (session.claudeSessionId) {
+    // First launch — assign a known session ID so we can resume later
+    parts.push('--session-id', session.claudeSessionId);
+  }
+
   if (session.flags) {
     if (session.flags.yolo) parts.push('--dangerously-skip-permissions');
+    if (session.flags.autoMode) parts.push('--enable-auto-mode');
     if (session.flags.withChrome) parts.push('--chrome');
     const args = session.flags.customArgs;
     if (args && typeof args === 'object') {
@@ -395,8 +417,16 @@ function buildClaudeCommand(session) {
 
 function spawnAndWirePty(sessionId) {
   const session = sessionManager.getSession(sessionId);
-  const cmd = buildClaudeCommand(session);
-  console.log(`Session ${sessionId}: spawning: ${cmd}`);
+  const isResume = !!(session.claudeSessionId && session.hasLaunched);
+
+  // Assign a Claude session ID on first launch (so we can --resume later)
+  if (!session.claudeSessionId) {
+    session.claudeSessionId = crypto.randomUUID();
+    sessionManager.saveSessionFile(sessionId);
+  }
+
+  const cmd = buildClaudeCommand(session, isResume);
+  console.log(`Session ${sessionId}: spawning${isResume ? ' (resume)' : ''}: ${cmd}`);
 
   const ptyProcess = pty.spawn(BASH_PATH, ['-c', cmd], {
     name: 'xterm-256color',
@@ -413,6 +443,7 @@ function spawnAndWirePty(sessionId) {
   // Wire the new PTY into the existing session object
   session.ptyProcess = ptyProcess;
   session.closed = false;
+  session.hasLaunched = true;
   session.primaryWs = null; // reset primary on new PTY
   sessionManager.updateSessionsFile();
 
@@ -527,7 +558,9 @@ wss.on('connection', (ws) => {
             createdAt: session.createdAt,
             history,
             yolo: !!(session.flags && session.flags.yolo),
+            autoMode: !!(session.flags && session.flags.autoMode),
             withChrome: !!(session.flags && session.flags.withChrome),
+            projectName: path.basename(process.cwd()),
           }));
         } else {
           ws.send(JSON.stringify({

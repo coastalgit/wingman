@@ -504,6 +504,10 @@ button { font-family: var(--font-sans); }
 .flag-label.chrome input[type="checkbox"]:checked { background: #3b82f6; border-color: #3b82f6; }
 .flag-label.chrome:has(input:checked) { color: #60a5fa; }
 
+/* Auto flag uses amber accent */
+.flag-label.auto input[type="checkbox"]:checked { background: #b45309; border-color: #b45309; }
+.flag-label.auto:has(input:checked) { color: #fbbf24; }
+
 /* Settings button in header */
 .settings-btn {
   display: flex;
@@ -610,6 +614,7 @@ button { font-family: var(--font-sans); }
 }
 .setting-input:focus { border-color: var(--primary); }
 .setting-input::placeholder { color: var(--text-4); }
+
 
 .modal-footer {
   display: flex;
@@ -736,12 +741,25 @@ button { font-family: var(--font-sans); }
   padding: 7px 20px;
   flex-shrink: 0;
   z-index: 100;
+  position: relative;
 }
 
-.status-left, .status-right {
+.status-left, .status-right, .status-center {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.status-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.status-project-name {
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.02em;
 }
 
 .status-item {
