@@ -24,8 +24,13 @@ This opens **Mission Control** in your browser. From there you can launch Claude
 - **Prompt Composer** — Write and send prompts with history tracking
 - **Context Editor** — Manage session context with templates and send history
 - **CLI Flags** — Set Claude flags per-session (model, effort, permissions, etc.)
-- **YOLO Mode** — `--dangerously-skip-permissions` with a red warning banner
+- **Auto Mode** — `--enable-auto-mode` with amber warning banner
+- **YOLO Mode** — `--dangerously-skip-permissions` with red warning banner
 - **Chrome Mode** — `--chrome` flag with blue indicator
+- **Session Resume** — reconnects to Claude's conversation via `--resume`
+- **Prompt Echo** — sent prompts are visible in the terminal (with Suppress Echo option)
+- **Ctrl+C Copy** — select text in terminal and Ctrl+C to copy (passes SIGINT when nothing selected)
+- **Project Name** — displayed in header and footer across all pages
 - **File References** — Drag-and-drop files or browse project to get copyable paths
 - **Settings** — Configure default file directory for uploads
 
@@ -60,7 +65,9 @@ wingman/
 │   ├── session.css            # Session styling
 │   ├── terminal.js            # xterm.js terminal wrapper
 │   └── styles.css             # Global shared styles
-├── package.json               # v2.0.0 — npm package definition
+├── scripts/
+│   └── postinstall.js         # Ensures slash commands are current on install
+├── package.json               # v2.2.0 — npm package definition
 ├── CLAUDE.md                  # Project instructions for Claude Code
 └── README.md                  # This file
 ```
