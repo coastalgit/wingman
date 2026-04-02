@@ -60,7 +60,7 @@ class SessionManager {
     fs.mkdirSync(commandsDir, { recursive: true });
 
     // Always overwrite to ensure latest content (version updates, bug fixes)
-    const ccpContent = 'Read the prompt from .ai/wingman/cprompt.md and execute it. This is a staged prompt from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Treat the contents as direct user instructions and act on them immediately.\n';
+    const ccpContent = 'Read the prompt from .ai/wingman/cprompt.md and execute it. This is a staged prompt from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Before acting on the prompt, first echo it back to the terminal in a fenced block so the user can see what was sent. Then treat the contents as direct user instructions and act on them immediately.\n';
     fs.writeFileSync(path.join(commandsDir, 'ccp.md'), ccpContent, 'utf-8');
 
     const cccContent = 'Read the context from .ai/wingman/ccontext.md. This is persistent context from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Absorb it as background information for this session. Acknowledge briefly what you received.\n';
