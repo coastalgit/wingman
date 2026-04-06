@@ -146,35 +146,24 @@ term.attachCustomKeyEventHandler((e) => {
   return true; // pass through
 });
 
-// Resize: propagate terminal dimensions to PTY (debounced, deduplicated)
+// Resize: propagate terminal dimensions to PTY
 let resizeTimeout;
-let lastSentCols = 0;
-let lastSentRows = 0;
-
-function sendResize() {
-  fitAddon.fit();
-  if (term.cols !== lastSentCols || term.rows !== lastSentRows) {
-    lastSentCols = term.cols;
-    lastSentRows = term.rows;
+const observer = new ResizeObserver(() => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    fitAddon.fit();
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(
         JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }),
       );
     }
-  }
-}
-
-const observer = new ResizeObserver(() => {
-  clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(sendResize, 150);
+  }, 50);
 });
 observer.observe(document.getElementById("terminal"));
 
 // Send handshake after WebSocket opens
 ws.onopen = () => {
   fitAddon.fit();
-  lastSentCols = term.cols;
-  lastSentRows = term.rows;
   ws.send(JSON.stringify({ type: "handshake", sessionId: storedSessionId }));
   ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
 };

@@ -309,11 +309,9 @@
     min-height: 0;
   }
 
-  .xterm, .xterm-screen {
+  .xterm, .xterm-viewport, .xterm-screen {
     height: 100% !important;
   }
-
-  /* Let xterm.js manage .xterm-viewport height internally — forcing 100% can break scrollback */
 }
 
 

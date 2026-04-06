@@ -632,8 +632,9 @@
     mainContent.style.height = editorH + 'px';
     terminalSection.style.flex = 'none';
     terminalSection.style.height = termH + 'px';
-    // Don't call fitAddon.fit() here — the ResizeObserver handles it with debouncing.
-    // Calling fit() on every mousemove causes Claude Code to redraw/clear repeatedly.
+    if (window.wingmanTerminal && window.wingmanTerminal.fitAddon) {
+      window.wingmanTerminal.fitAddon.fit();
+    }
   });
 
   document.addEventListener('mouseup', () => {
@@ -641,7 +642,9 @@
       dragging = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      // Single fit at end of drag — ResizeObserver will also pick this up
+      if (window.wingmanTerminal && window.wingmanTerminal.fitAddon) {
+        window.wingmanTerminal.fitAddon.fit();
+      }
     }
   });
 
