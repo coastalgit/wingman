@@ -133,7 +133,8 @@
       const meta = document.createElement('div');
       meta.className = 'ctx-history-item-meta';
       const time = document.createElement('span');
-      time.textContent = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const cd = new Date(entry.timestamp);
+      time.textContent = cd.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + cd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const tokens = document.createElement('span');
       tokens.textContent = '~' + (entry.tokens || Math.round(entry.text.length / 4)) + ' tok';
       meta.appendChild(time);
@@ -315,7 +316,8 @@
       meta.appendChild(deleteBtn);
 
       const time = document.createElement('span');
-      time.textContent = new Date(prompt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const d = new Date(prompt.timestamp);
+      time.textContent = d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const tokens = document.createElement('span');
       tokens.textContent = '~' + (prompt.tokens || Math.round(prompt.text.length / 4)) + ' tokens';
       meta.appendChild(time);
