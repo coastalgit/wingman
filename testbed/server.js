@@ -150,7 +150,7 @@ app.get('/api/sessions/:id/prompt', (req, res) => {
   res.json({ text: sessionManager.loadPrompt() });
 });
 
-// REST API: Send prompt — write directly to Claude's stdin (no /ccp slash command)
+// REST API: Send prompt — save to shared file, append to session history, inject /ccp into PTY
 app.post('/api/sessions/:id/prompt', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
