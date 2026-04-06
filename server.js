@@ -93,9 +93,11 @@ app.get('/api/version', (req, res) => {
   res.json({ version: pkg.version, build: pkg.build || 0 });
 });
 
-// REST API: Project info (basename of cwd)
+// REST API: Project info (custom workspace name or basename of cwd)
 app.get('/api/project-info', (req, res) => {
-  res.json({ name: path.basename(process.cwd()) });
+  const config = sessionManager.loadConfig();
+  const customName = config.settings && config.settings.workspaceName;
+  res.json({ name: customName || path.basename(process.cwd()) });
 });
 
 // REST API: List all sessions with status
@@ -111,9 +113,8 @@ app.post('/api/sessions', (req, res) => {
 
   const description = (req.body && req.body.description) || 'Claude Code session';
 
-  // Register session metadata first (with no PTY yet), then spawn
+  // Register session metadata only — PTY spawns when user clicks Open (connects via WebSocket)
   const sessionId = sessionManager.spawnSession(null, { description });
-  spawnAndWirePty(sessionId);
   broadcastSessionUpdate();
 
   res.json({ sessionId, url: '/session/' + sessionId });
@@ -466,9 +467,34 @@ function spawnAndWirePty(sessionId) {
     });
   });
 
-  // PTY exited naturally (e.g. user typed 'exit') — detach but keep session reconnectable
+  // PTY exited — check if it was a failed resume, and auto-retry as fresh session
   ptyProcess.onExit(({ exitCode, signal }) => {
     console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
+    const session = sessionManager.getSession(sessionId);
+
+    // If this was a resume attempt that failed (non-zero exit, quick death), retry as fresh
+    if (exitCode !== 0 && session && session.claudeSessionId && session.hasLaunched) {
+      console.log(`Session ${sessionId}: resume failed — clearing claudeSessionId and retrying as fresh`);
+      session.claudeSessionId = null;
+      session.hasLaunched = false;
+      session.ptyProcess = null;
+      sessionManager.saveSessionFile(sessionId);
+
+      // Notify terminal clients
+      const msg = '\r\n\x1b[38;5;208m[Resume failed — starting fresh session]\x1b[0m\r\n';
+      wss.clients.forEach((client) => {
+        if (client.readyState === 1 && client.sessionId === sessionId) {
+          client.send(JSON.stringify({ type: 'output', data: msg }));
+        }
+      });
+      sessionManager.addToHistory(sessionId, msg);
+
+      // Respawn as fresh
+      spawnAndWirePty(sessionId);
+      broadcastSessionUpdate();
+      return;
+    }
+
     sessionManager.detachPty(sessionId);
     broadcastSessionUpdate();
     wss.clients.forEach((client) => {

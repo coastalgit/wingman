@@ -132,12 +132,15 @@ const settingsCancel = document.getElementById("settings-cancel");
 const settingsSave = document.getElementById("settings-save");
 const defaultFileDirInput = document.getElementById("defaultFileDirInput");
 
+const workspaceNameInput = document.getElementById("workspaceNameInput");
+
 settingsBtn.addEventListener("click", () => {
   fetch("/api/config")
     .then(r => r.json())
     .then(cfg => {
       const dir = (cfg.settings && cfg.settings.defaultFileDir) || "docs/promptfiles/";
       defaultFileDirInput.value = dir;
+      workspaceNameInput.value = (cfg.settings && cfg.settings.workspaceName) || "";
     })
     .catch(() => {});
   settingsModal.classList.remove("hidden");
@@ -153,13 +156,21 @@ settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal)
 
 settingsSave.addEventListener("click", async () => {
   const dir = defaultFileDirInput.value.trim() || "docs/promptfiles/";
+  const wsName = workspaceNameInput.value.trim();
   settingsSave.disabled = true;
   try {
     await fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ defaultFileDir: dir }),
+      body: JSON.stringify({ defaultFileDir: dir, workspaceName: wsName || null }),
     });
+    // Update header and footer immediately with new name
+    fetch("/api/project-info").then(r => r.json()).then(data => {
+      const title = document.querySelector(".header-title");
+      if (title) title.textContent = "Mission Control — " + (data.name || "");
+      const projEl = document.getElementById("statusProjectName");
+      if (projEl) projEl.textContent = data.name || "";
+    }).catch(() => {});
     closeSettingsModal();
   } catch (err) {
     console.error("Failed to save settings:", err);
