@@ -632,9 +632,8 @@
     mainContent.style.height = editorH + 'px';
     terminalSection.style.flex = 'none';
     terminalSection.style.height = termH + 'px';
-    if (window.wingmanTerminal && window.wingmanTerminal.fitAddon) {
-      window.wingmanTerminal.fitAddon.fit();
-    }
+    // Don't call fitAddon.fit() here — the ResizeObserver handles it with debouncing.
+    // Calling fit() on every mousemove causes Claude Code to redraw/clear repeatedly.
   });
 
   document.addEventListener('mouseup', () => {
@@ -642,9 +641,7 @@
       dragging = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      if (window.wingmanTerminal && window.wingmanTerminal.fitAddon) {
-        window.wingmanTerminal.fitAddon.fit();
-      }
+      // Single fit at end of drag — ResizeObserver will also pick this up
     }
   });
 
