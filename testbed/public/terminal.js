@@ -25,11 +25,10 @@ requestAnimationFrame(() => fitAddon.fit());
 const ws = new WebSocket("ws://" + location.host);
 let serverShuttingDown = false;
 
-// Retrieve session ID from URL path
+// Retrieve session ID from URL path — URL is the sole source of truth.
+// Never fall back to localStorage, which can point to a different session and cause cross-talk.
 const pathMatch = window.location.pathname.match(/\/session\/(.+)/);
-const urlSessionId = pathMatch ? pathMatch[1] : null;
-const storedSessionId =
-  urlSessionId || localStorage.getItem("wingmanSessionId") || null;
+const storedSessionId = pathMatch ? pathMatch[1] : null;
 
 // Exposed state for session-ui.js
 window.wingmanTerminal = { sessionId: storedSessionId, ws, term, fitAddon };
@@ -39,7 +38,6 @@ ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
 
   if (msg.type === "handshake-ack") {
-    localStorage.setItem("wingmanSessionId", msg.sessionId);
     window.wingmanTerminal.sessionId = msg.sessionId;
 
     // Update header
@@ -48,6 +46,9 @@ ws.onmessage = (event) => {
 
     const headerName = document.getElementById("headerSessionName");
     if (headerName) headerName.textContent = desc;
+
+    const termSessionId = document.getElementById("terminalSessionId");
+    if (termSessionId) termSessionId.textContent = msg.sessionId.substring(0, 8);
 
     const termStatus = document.getElementById("terminalStatus");
     if (termStatus)
@@ -174,6 +175,8 @@ ws.onclose = () => {
   } else {
     term.writeln("\r\n\x1b[38;5;208m[Connection closed]\x1b[0m");
   }
+  // Disable all interaction — connection is dead
+  window.dispatchEvent(new CustomEvent("wingman-connection-lost"));
 };
 
 ws.onerror = (err) => {

@@ -177,6 +177,7 @@
         }
         setStatus('/ccc sent', 2000);
         contextSent = true;
+        sendContextBtn.textContent = 'Resend /ccc';
         const hint = document.getElementById('contextHint');
         if (hint) hint.classList.add('hidden');
       } else {
@@ -345,11 +346,16 @@
 
   // ─── Stop Session ───────────────────────────────────
 
+  // Enable stop button immediately if we have a session ID from the URL
+  const urlSid = window.wingmanTerminal && window.wingmanTerminal.sessionId;
+  if (urlSid) stopSessionBtn.disabled = false;
+
   stopSessionBtn.addEventListener('click', async () => {
-    if (!sessionId) return;
+    const sid = sessionId || (window.wingmanTerminal && window.wingmanTerminal.sessionId);
+    if (!sid) return;
     stopSessionBtn.disabled = true;
     try {
-      await fetch('/api/sessions/' + sessionId, { method: 'DELETE' });
+      await fetch('/api/sessions/' + sid, { method: 'DELETE' });
       showToast('Session stopped', 'info');
     } catch (err) {
       console.error(err);
@@ -699,8 +705,13 @@
     } catch (err) { /* non-critical */ }
     renderCtxHistory();
 
-    // Hint stays visible until context is sent in THIS browser visit
-    // (contextSent starts false; set true only by sendContext handler)
+    // If context was previously sent in this session, reflect that in the UI
+    if (ctxHistoryData.length > 0) {
+      contextSent = true;
+      const hint = document.getElementById('contextHint');
+      if (hint) hint.classList.add('hidden');
+      sendContextBtn.textContent = 'Resend /ccc';
+    }
 
     // Load prompt history (per-session)
     try {
@@ -715,10 +726,7 @@
 
   // ─── Session Ended Overlay ───────────────────────────
 
-  window.addEventListener('wingman-session-ended', () => {
-    const overlay = document.getElementById('session-ended-overlay');
-    if (overlay) overlay.classList.remove('hidden');
-    setTimeout(() => window.close(), 1000);
+  function disableSessionUI() {
     sendContextBtn.disabled = true;
     sendPromptBtn.disabled = true;
     clearPromptBtn.disabled = true;
@@ -726,7 +734,22 @@
     promptEditorEl.disabled = true;
     templateBtnEl.disabled = true;
     addFileBtnEl.disabled = true;
+  }
+
+  window.addEventListener('wingman-session-ended', () => {
+    const overlay = document.getElementById('session-ended-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+    setTimeout(() => window.close(), 1000);
+    disableSessionUI();
     stopSessionBtn.disabled = true;
+  });
+
+  // Connection lost (server stopped, overnight disconnect, etc.)
+  // Disable everything except Exit Session so user can still close the tab cleanly
+  window.addEventListener('wingman-connection-lost', () => {
+    disableSessionUI();
+    const termStatus = document.getElementById('terminalStatus');
+    if (termStatus) termStatus.textContent = 'disconnected';
   });
 
   // ─── Version Display ─────────────────────────────────

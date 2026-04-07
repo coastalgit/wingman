@@ -186,7 +186,10 @@ app.post('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  const text = (req.body && req.body.text) || '';
+  const rawText = (req.body && req.body.text) || '';
+  const sessionDesc = session.description || 'Session ' + req.params.id.substring(0, 8);
+  const headerLine = '<!-- Context for: ' + sessionDesc + ' -->\n\n';
+  const text = headerLine + rawText;
   sessionManager.saveContext(req.params.id, text);
 
   const entry = {
@@ -437,6 +440,7 @@ function spawnAndWirePty(sessionId) {
 
   const cmd = buildClaudeCommand(session, isResume);
   console.log(`Session ${sessionId}: spawning${isResume ? ' (resume)' : ''}: ${cmd}`);
+  console.log(`Session ${sessionId}: flags=${JSON.stringify(session.flags || {})}`);
 
   const ptyProcess = pty.spawn(BASH_PATH, ['-c', cmd], {
     name: 'xterm-256color',
@@ -455,6 +459,7 @@ function spawnAndWirePty(sessionId) {
   session.closed = false;
   session.hasLaunched = true;
   session.primaryWs = null; // reset primary on new PTY
+  const spawnedAt = Date.now();
   sessionManager.updateSessionsFile();
 
   // Buffer PTY output into history and broadcast to all connected terminal clients
@@ -467,21 +472,25 @@ function spawnAndWirePty(sessionId) {
     });
   });
 
-  // PTY exited — check if it was a failed resume, and auto-retry as fresh session
+  // PTY exited — quick exits (< 5s) are treated as failed starts (e.g. resume with no history)
   ptyProcess.onExit(({ exitCode, signal }) => {
-    console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal})`);
+    const aliveMs = Date.now() - spawnedAt;
+    console.log(`Session ${sessionId}: PTY exited (code=${exitCode}, signal=${signal}, alive=${aliveMs}ms)`);
     const session = sessionManager.getSession(sessionId);
 
-    // If this was a resume attempt that failed (non-zero exit, quick death), retry as fresh
-    if (exitCode !== 0 && session && session.claudeSessionId && session.hasLaunched) {
-      console.log(`Session ${sessionId}: resume failed — clearing claudeSessionId and retrying as fresh`);
+    // Quick death (< 5s) or non-zero exit on a resume attempt → retry as fresh (once only)
+    const quickDeath = aliveMs < 5000;
+    const wasResume = isResume;  // only retry if this was a resume attempt, not a fresh start
+    const canRetry = wasResume && session && session.claudeSessionId && session.hasLaunched;
+    if (canRetry && (exitCode !== 0 || quickDeath)) {
+      console.log(`Session ${sessionId}: ${quickDeath ? 'quick exit' : 'resume failed'} — retrying as fresh`);
       session.claudeSessionId = null;
       session.hasLaunched = false;
       session.ptyProcess = null;
       sessionManager.saveSessionFile(sessionId);
 
       // Notify terminal clients
-      const msg = '\r\n\x1b[38;5;208m[Resume failed — starting fresh session]\x1b[0m\r\n';
+      const msg = '\r\n\x1b[38;5;208m[Restarting session...]\x1b[0m\r\n';
       wss.clients.forEach((client) => {
         if (client.readyState === 1 && client.sessionId === sessionId) {
           client.send(JSON.stringify({ type: 'output', data: msg }));

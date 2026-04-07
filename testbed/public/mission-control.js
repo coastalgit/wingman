@@ -354,6 +354,9 @@ argsSave.addEventListener("click", async () => {
 
 let selectedSessionId = null;
 
+// Track in-flight flag saves per session so Open waits for them
+const pendingFlagSaves = new Map();
+
 // Render session cards using DOM methods (no innerHTML for security)
 function renderSessions(sessions) {
   sessionsList.replaceChildren();
@@ -410,7 +413,9 @@ function renderSessions(sessions) {
       document.querySelectorAll(".session-card").forEach(c => c.classList.remove("selected"));
       if (selectedSessionId) card.classList.add("selected");
     });
-    card.addEventListener("dblclick", () => {
+    card.addEventListener("dblclick", async () => {
+      const pending = pendingFlagSaves.get(session.id);
+      if (pending) await pending;
       window.open("/session/" + session.id, "_blank");
     });
 
@@ -444,8 +449,11 @@ function renderSessions(sessions) {
     const openBtn = document.createElement("button");
     openBtn.className = "btn open";
     openBtn.textContent = "Open";
-    openBtn.addEventListener("click", (e) => {
+    openBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
+      // Wait for any in-flight flag save to complete before opening
+      const pending = pendingFlagSaves.get(session.id);
+      if (pending) await pending;
       window.open("/session/" + session.id, "_blank");
     });
     actions.appendChild(openBtn);
@@ -500,22 +508,26 @@ function renderSessions(sessions) {
     autoLabel.appendChild(document.createTextNode(" Auto"));
     cardBottom.appendChild(autoLabel);
 
+    // Save flags with tracking so Open can wait for completion
+    function saveFlags(sid, flagData) {
+      const p = fetch("/api/sessions/" + sid + "/flags", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(flagData),
+      }).catch(() => {}).finally(() => {
+        if (pendingFlagSaves.get(sid) === p) pendingFlagSaves.delete(sid);
+      });
+      pendingFlagSaves.set(sid, p);
+    }
+
     // Mutual exclusion: ticking one unticks the other
-    yoloCheck.addEventListener("change", async () => {
+    yoloCheck.addEventListener("change", () => {
       if (yoloCheck.checked) autoCheck.checked = false;
-      await fetch("/api/sessions/" + session.id + "/flags", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ yolo: yoloCheck.checked, autoMode: false }),
-      }).catch(() => {});
+      saveFlags(session.id, { yolo: yoloCheck.checked, autoMode: false });
     });
-    autoCheck.addEventListener("change", async () => {
+    autoCheck.addEventListener("change", () => {
       if (autoCheck.checked) yoloCheck.checked = false;
-      await fetch("/api/sessions/" + session.id + "/flags", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ autoMode: autoCheck.checked, yolo: false }),
-      }).catch(() => {});
+      saveFlags(session.id, { autoMode: autoCheck.checked, yolo: false });
     });
 
     // With Chrome flag
@@ -524,12 +536,8 @@ function renderSessions(sessions) {
     const chromeCheck = document.createElement("input");
     chromeCheck.type = "checkbox";
     chromeCheck.checked = !!(session.flags && session.flags.withChrome);
-    chromeCheck.addEventListener("change", async () => {
-      await fetch("/api/sessions/" + session.id + "/flags", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ withChrome: chromeCheck.checked }),
-      }).catch(() => {});
+    chromeCheck.addEventListener("change", () => {
+      saveFlags(session.id, { withChrome: chromeCheck.checked });
     });
     chromeLabel.appendChild(chromeCheck);
     chromeLabel.appendChild(document.createTextNode(" Chrome"));
