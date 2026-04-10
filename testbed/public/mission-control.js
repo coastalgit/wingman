@@ -46,53 +46,72 @@ fetch("/api/mode")
     /* non-critical, ignore */
   });
 
-// WebSocket connection to server
-const ws = new WebSocket("ws://" + location.host);
+// ─── Reconnecting WebSocket ─────────────────────────────────────────
+let ws = null;
+let serverShuttingDown = false;
+let reconnectDelay = 1000;
+const MAX_RECONNECT_DELAY = 8000;
 
-ws.onopen = () => {
-  // Identify as Mission Control client
-  ws.send(JSON.stringify({ type: "mc-connect" }));
-};
+function connectMcWebSocket() {
+  ws = new WebSocket("ws://" + location.host);
 
-ws.onmessage = (event) => {
-  const msg = JSON.parse(event.data);
+  ws.onopen = () => {
+    reconnectDelay = 1000;
+    ws.send(JSON.stringify({ type: "mc-connect" }));
+    // Hide overlay if we just reconnected
+    if (!serverShuttingDown) {
+      shutdownOverlay.classList.add("hidden");
+      newSessionBtn.disabled = false;
+      exitBtn.disabled = false;
+    }
+  };
 
-  if (msg.type === "session-update") {
-    renderSessions(msg.sessions);
-    const active = (msg.sessions || []).filter(
-      (s) => s.status === "active",
-    ).length;
-    const el = document.getElementById("statusSessions");
-    if (el)
-      el.textContent = active + " active session" + (active !== 1 ? "s" : "");
-  }
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
 
-  if (msg.type === "shutdown") {
+    if (msg.type === "session-update") {
+      renderSessions(msg.sessions);
+      const active = (msg.sessions || []).filter(
+        (s) => s.status === "active",
+      ).length;
+      const el = document.getElementById("statusSessions");
+      if (el)
+        el.textContent = active + " active session" + (active !== 1 ? "s" : "");
+    }
+
+    if (msg.type === "shutdown") {
+      serverShuttingDown = true;
+      shutdownOverlay.classList.remove("hidden");
+      newSessionBtn.disabled = true;
+      exitBtn.disabled = true;
+    }
+  };
+
+  ws.onclose = () => {
+    const overlayContent = document.querySelector(".overlay-content");
+    if (serverShuttingDown) {
+      overlayContent.textContent = "Wingman ended";
+      return;
+    }
+    // Unexpected disconnect — show reconnecting status and retry
     shutdownOverlay.classList.remove("hidden");
-    newSessionBtn.disabled = true;
-    exitBtn.disabled = true;
-  }
-};
+    overlayContent.textContent = "Reconnecting...";
+    setTimeout(() => {
+      reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+      connectMcWebSocket();
+    }, reconnectDelay);
+  };
 
-ws.onclose = () => {
-  const overlayContent = document.querySelector(".overlay-content");
-  if (!shutdownOverlay.classList.contains("hidden")) {
-    // Server finished shutting down — update from "shutting down..." to final state
-    overlayContent.textContent = "Wingman ended";
-  } else {
-    // Unexpected connection loss
-    shutdownOverlay.classList.remove("hidden");
-    overlayContent.textContent = "Connection lost.";
-  }
-};
+  ws.onerror = (err) => {
+    console.error("WebSocket error:", err);
+  };
+}
 
-ws.onerror = (err) => {
-  console.error("WebSocket error:", err);
-};
+connectMcWebSocket();
 
 // Polling fallback — catches any missed WS broadcasts (e.g. natural PTY exit)
 setInterval(async () => {
-  if (ws.readyState !== WebSocket.OPEN) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
   try {
     const res = await fetch("/api/sessions");
     if (!res.ok) return;

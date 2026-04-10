@@ -301,6 +301,24 @@
     border-top: 1px solid var(--border-1);
     border-bottom: 1px solid var(--border-1);
     flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .toolbar-btn {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border: 1px solid var(--border-2);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .toolbar-btn:hover {
+    background: var(--bg-2);
+    color: var(--text-1);
   }
 
   #terminal {
@@ -393,6 +411,10 @@
     font-family: var(--font-mono);
     color: var(--info);
     opacity: 0.75;
+  }
+
+  #terminalSessionId {
+    margin-left: auto;
   }
 
   .meta-divider { color: var(--border-3); }

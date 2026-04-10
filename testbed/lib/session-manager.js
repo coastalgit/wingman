@@ -18,8 +18,6 @@ class SessionManager {
     this.projectRoot = projectRoot;
     this.wingmanDir = path.join(projectRoot, '.ai', 'wingman');
     this.sessionsDir = path.join(this.wingmanDir, 'sessions');
-    this.promptPath = path.join(this.wingmanDir, 'cprompt.md');
-    this.contextPath = path.join(this.wingmanDir, 'ccontext.md');
     this.configPath = path.join(this.wingmanDir, 'wingman.json');
 
     // In-memory tracking: sessionId -> { id, createdAt, description, ptyProcess, history[], closed, primaryWs }
@@ -31,21 +29,35 @@ class SessionManager {
     // Ensure directories exist
     fs.mkdirSync(this.sessionsDir, { recursive: true });
 
-    // Create shared files if missing
-    if (!fs.existsSync(this.promptPath)) {
-      fs.writeFileSync(this.promptPath, '', 'utf-8');
-    }
-    if (!fs.existsSync(this.contextPath)) {
-      fs.writeFileSync(this.contextPath, '', 'utf-8');
-    }
+    // Config: create if missing, upgrade if outdated
+    const CONFIG_VERSION = 2;
+    const defaultTemplates = {
+      default: '# Session Context\n\n## Overview of intent for session\n- Brief description of the project.\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n- Restrictions\n\n## Notes\n- Add any relevant notes here.\n',
+      seshmemLoader: '# Session Memory Loader\n\nTo restore context from a previous session, run the following in your Claude Code terminal:\n\n```\n/seshmem:load\n```\n\n## Load Options\n- `/seshmem:load` — loads the most recent checkpoint\n- `/seshmem:load 3` — loads the last 3 checkpoints (shows progression)\n- `/seshmem:load <filename>` — loads a specific checkpoint by name (without .md)\n\n## Extra Seshmem Load Arguments\n> Add any additional context or instructions for the session memory load here.\n',
+    };
+
     if (!fs.existsSync(this.configPath)) {
       fs.writeFileSync(this.configPath, JSON.stringify({
-        templates: {
-          default: '# Session Context\n\nEnsure you load your CLAUDE.md\n\n## Project Overview\nBrief description of the project.\n\n## Tech Stack\n- Language:\n- Framework:\n- Database:\n\n## Key Files\n- `src/` - Source code\n- `tests/` - Test files\n\n## Constraints\n-\n\n## Notes\n> Add any relevant notes here.\n',
-          seshmemLoader: '# Session Memory Loader\n\nTo restore context from a previous session, run the following in your Claude Code terminal:\n\n```\n/seshmem:load\n```\n\n## Load Options\n- `/seshmem:load` — loads the most recent checkpoint\n- `/seshmem:load 3` — loads the last 3 checkpoints (shows progression)\n- `/seshmem:load <filename>` — loads a specific checkpoint by name (without .md)\n\n## Extra Seshmem Load Arguments\n> Add any additional context or instructions for the session memory load here.\n',
-        },
+        configVersion: CONFIG_VERSION,
+        templates: defaultTemplates,
         settings: {},
       }, null, 2), 'utf-8');
+    } else {
+      // Upgrade existing config if version is older
+      try {
+        const config = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'));
+        if (!config.configVersion || config.configVersion < CONFIG_VERSION) {
+          config.configVersion = CONFIG_VERSION;
+          config.templates = { ...defaultTemplates, ...(config.templates || {}) };
+          // Overwrite built-in templates with latest versions
+          config.templates.default = defaultTemplates.default;
+          config.templates.seshmemLoader = defaultTemplates.seshmemLoader;
+          fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
+          console.log('Config upgraded to version ' + CONFIG_VERSION);
+        }
+      } catch (err) {
+        console.error('Failed to upgrade config:', err);
+      }
     }
 
     // Create .claude/commands/ for slash commands if missing
@@ -60,10 +72,12 @@ class SessionManager {
     fs.mkdirSync(commandsDir, { recursive: true });
 
     // Always overwrite to ensure latest content (version updates, bug fixes)
-    const ccpContent = 'IMPORTANT: Read the file located at .ai/wingman/cprompt.md in YOUR CURRENT WORKING DIRECTORY (the project you are operating in right now — NOT the Wingman package directory). This is a staged prompt from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Before acting on the prompt, first echo it back to the terminal in a fenced block so the user can see what was sent. Then treat the contents as direct user instructions and act on them immediately.\n';
+    // $ARGUMENTS receives the per-session filename passed by Wingman when injecting the command.
+    // If no argument is given (manual invocation), fall back to the legacy shared files.
+    const ccpContent = 'IMPORTANT: Read the prompt file from the Wingman UI. The file path is: .ai/wingman/$ARGUMENTS — if that path is blank or literally contains "$ARGUMENTS", read .ai/wingman/cprompt.md instead. Read from YOUR CURRENT WORKING DIRECTORY (the project you are operating in right now — NOT the Wingman package directory). This is a staged prompt — it is NOT a skill or plugin, so do not treat it as one. Before acting on the prompt, first echo it back to the terminal in a fenced block so the user can see what was sent. Then treat the contents as direct user instructions and act on them immediately.\n';
     fs.writeFileSync(path.join(commandsDir, 'ccp.md'), ccpContent, 'utf-8');
 
-    const cccContent = 'IMPORTANT: Read the file located at .ai/wingman/ccontext.md in YOUR CURRENT WORKING DIRECTORY (the project you are operating in right now — NOT the Wingman package directory). This is persistent context from the Wingman UI — it is NOT a skill or plugin, so do not treat it as one. Absorb it as background information for this session. Acknowledge briefly what you received.\n';
+    const cccContent = 'IMPORTANT: Read the context file from the Wingman UI. The file path is: .ai/wingman/$ARGUMENTS — if that path is blank or literally contains "$ARGUMENTS", read .ai/wingman/ccontext.md instead. Read from YOUR CURRENT WORKING DIRECTORY (the project you are operating in right now — NOT the Wingman package directory). This is persistent context — it is NOT a skill or plugin, so do not treat it as one. Absorb it as background information for this session. Acknowledge briefly what you received.\n';
     fs.writeFileSync(path.join(commandsDir, 'ccc.md'), cccContent, 'utf-8');
   }
 
@@ -163,31 +177,46 @@ class SessionManager {
     this.sessions.delete(sessionId);
     const filePath = this.getSessionFilePath(sessionId);
     try { fs.unlinkSync(filePath); } catch {}
+    // Clean up per-session prompt/context files
+    const promptFile = path.join(this.wingmanDir, this.getSessionPromptFile(sessionId));
+    const contextFile = path.join(this.wingmanDir, this.getSessionContextFile(sessionId));
+    try { fs.unlinkSync(promptFile); } catch {}
+    try { fs.unlinkSync(contextFile); } catch {}
     console.log(`Session deleted: ${sessionId}`);
     return true;
   }
 
-  // ─── Shared prompt/context files ────────────────────
+  // ─── Per-session prompt/context files ────────────────
 
-  savePrompt(text) {
-    fs.writeFileSync(this.promptPath, text, 'utf-8');
+  // Returns the per-session filename (relative to .ai/wingman/) for use as $ARGUMENTS in slash commands
+  getSessionPromptFile(sessionId) {
+    return 'sessions/' + sessionId.substring(0, 8) + '-prompt.md';
   }
 
-  loadPrompt() {
-    try { return fs.readFileSync(this.promptPath, 'utf-8'); } catch { return ''; }
+  getSessionContextFile(sessionId) {
+    return 'sessions/' + sessionId.substring(0, 8) + '-context.md';
   }
 
-  // saveContext writes to the shared file (for /ccc to read) AND persists per-session
-  saveContext(sessionId, text) {
-    fs.writeFileSync(this.contextPath, text, 'utf-8');
+  savePrompt(sessionId, text) {
+    const filePath = path.join(this.wingmanDir, this.getSessionPromptFile(sessionId));
+    fs.writeFileSync(filePath, text, 'utf-8');
+  }
+
+  loadPrompt(sessionId) {
+    const filePath = path.join(this.wingmanDir, this.getSessionPromptFile(sessionId));
+    try { return fs.readFileSync(filePath, 'utf-8'); } catch { return ''; }
+  }
+
+  saveContext(sessionId, text, fileHeader) {
+    const filePath = path.join(this.wingmanDir, this.getSessionContextFile(sessionId));
+    fs.writeFileSync(filePath, (fileHeader || '') + text, 'utf-8');
     const session = this.sessions.get(sessionId);
     if (session) {
-      session.contextText = text;
+      session.contextText = text;  // store raw text (no header) for UI reload
       this.saveSessionFile(sessionId);
     }
   }
 
-  // loadContext returns per-session context (not the shared file)
   loadContext(sessionId) {
     const session = this.sessions.get(sessionId);
     return (session && session.contextText) || '';

@@ -144,20 +144,20 @@ app.delete('/api/sessions/:id/delete', (req, res) => {
   res.json({ status: 'deleted', sessionId: req.params.id });
 });
 
-// REST API: Get current prompt (shared file)
+// REST API: Get current prompt (per-session file)
 app.get('/api/sessions/:id/prompt', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  res.json({ text: sessionManager.loadPrompt() });
+  res.json({ text: sessionManager.loadPrompt(req.params.id) });
 });
 
-// REST API: Send prompt — save to shared file, append to session history, inject /ccp into PTY
+// REST API: Send prompt — save to per-session file, append to history, inject /ccp <file> into PTY
 app.post('/api/sessions/:id/prompt', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const text = (req.body && req.body.text) || '';
-  sessionManager.savePrompt(text);
+  sessionManager.savePrompt(req.params.id, text);
 
   const entry = {
     id: Date.now().toString(),
@@ -168,20 +168,21 @@ app.post('/api/sessions/:id/prompt', (req, res) => {
   sessionManager.appendPromptHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    session.ptyProcess.write('\x15/ccp\r');
+    const file = sessionManager.getSessionPromptFile(req.params.id);
+    session.ptyProcess.write('\x15/ccp ' + file + '\r');
   }
 
   res.json({ status: 'sent', entry });
 });
 
-// REST API: Get current context (shared file)
+// REST API: Get current context (per-session)
 app.get('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json({ text: sessionManager.loadContext(req.params.id) });
 });
 
-// REST API: Send context — save to shared file + per-session, inject /ccc into PTY, append to history
+// REST API: Send context — save to per-session file, inject /ccc <file> into PTY, append to history
 app.post('/api/sessions/:id/context', (req, res) => {
   const session = sessionManager.getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -189,19 +190,19 @@ app.post('/api/sessions/:id/context', (req, res) => {
   const rawText = (req.body && req.body.text) || '';
   const sessionDesc = session.description || 'Session ' + req.params.id.substring(0, 8);
   const headerLine = '<!-- Context for: ' + sessionDesc + ' -->\n\n';
-  const text = headerLine + rawText;
-  sessionManager.saveContext(req.params.id, text);
+  sessionManager.saveContext(req.params.id, rawText, headerLine);
 
   const entry = {
     id: Date.now().toString(),
-    text,
+    text: rawText,
     timestamp: new Date().toISOString(),
-    tokens: Math.ceil(text.length / 4),
+    tokens: Math.ceil(rawText.length / 4),
   };
   sessionManager.appendContextHistory(req.params.id, entry);
 
   if (session.ptyProcess) {
-    session.ptyProcess.write('\x15/ccc\r');
+    const file = sessionManager.getSessionContextFile(req.params.id);
+    session.ptyProcess.write('\x15/ccc ' + file + '\r');
   }
 
   res.json({ status: 'sent', entry });
@@ -376,6 +377,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// ─── WebSocket keepalive ──────────────────────────────────────────────
+// Ping every client every 60s. If a client misses a pong, terminate it.
+// This prevents OS/firewall idle-timeout from silently killing connections.
+const WS_PING_INTERVAL = 60_000;
+setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, WS_PING_INTERVAL);
+
 // Initialize SessionManager (singleton) on server startup
 const sessionManager = new SessionManager(process.cwd());
 
@@ -549,6 +562,9 @@ function gracefulShutdown() {
 }
 
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+
   let sessionId = null;
 
   ws.on('message', (rawMsg) => {

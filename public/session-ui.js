@@ -177,7 +177,7 @@
         }
         setStatus('/ccc sent', 2000);
         contextSent = true;
-        sendContextBtn.textContent = 'Resend /ccc';
+        sendContextBtn.textContent = 'Resend context';
         const hint = document.getElementById('contextHint');
         if (hint) hint.classList.add('hidden');
       } else {
@@ -591,11 +591,14 @@
 
   // ─── Keyboard Shortcuts ─────────────────────────────
 
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.key === 'Enter') {
-      e.preventDefault();
-      sendPromptBtn.click();
-    }
+  // Ctrl+Enter sends prompt — only when focus is in an editor, not the terminal
+  [contextEditorEl, promptEditorEl].forEach(el => {
+    el.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        sendPromptBtn.click();
+      }
+    });
   });
 
   [contextEditorEl, promptEditorEl].forEach(textarea => {
@@ -710,7 +713,7 @@
       contextSent = true;
       const hint = document.getElementById('contextHint');
       if (hint) hint.classList.add('hidden');
-      sendContextBtn.textContent = 'Resend /ccc';
+      sendContextBtn.textContent = 'Resend context';
     }
 
     // Load prompt history (per-session)
